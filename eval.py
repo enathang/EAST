@@ -8,10 +8,10 @@ import tensorflow as tf
 import locality_aware_nms as nms_locality
 import lanms
 
-tf.app.flags.DEFINE_string('test_data_path', '/tmp/ch4_test_images/images/', '')
+tf.app.flags.DEFINE_string('test_data_path', 'maps/', '')
 tf.app.flags.DEFINE_string('gpu_list', '0', '')
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_icdar2015_resnet_v1_50_rbox/', '')
-tf.app.flags.DEFINE_string('output_dir', '/tmp/ch4_test_images/images/', '')
+tf.app.flags.DEFINE_string('checkpoint_path', 'east_icdar2015_resnet_v1_50_rbox/', '')
+tf.app.flags.DEFINE_string('output_dir', 'output/', '')
 tf.app.flags.DEFINE_bool('no_write_images', False, 'do not write images')
 
 import model
@@ -25,7 +25,7 @@ def get_images():
     :return: list of files found
     '''
     files = []
-    exts = ['jpg', 'png', 'jpeg', 'JPG']
+    exts = ['jpg', 'png', 'jpeg', 'JPG', 'tiff', 'TIFF']
     for parent, dirnames, filenames in os.walk(FLAGS.test_data_path):
         for filename in filenames:
             for ext in exts:
@@ -66,17 +66,7 @@ def resize_image(im, max_side_len=2400):
     return im, (ratio_h, ratio_w)
 
 
-def detect(score_map, geo_map, timer, score_map_thresh=0.8, box_thresh=0.1, nms_thres=0.2):
-    '''
-    restore text boxes from score map and geo map
-    :param score_map:
-    :param geo_map:
-    :param timer:
-    :param score_map_thresh: threshhold for score map
-    :param box_thresh: threshhold for boxes
-    :param nms_thres: threshold for nms
-    :return:
-    '''
+def detect(score_map, geo_map, timer, score_map_thresh=0.1, box_thresh=0.1, nms_thres=0.5):
     if len(score_map.shape) == 4:
         score_map = score_map[0, :, :, 0]
         geo_map = geo_map[0, :, :, ]
@@ -124,43 +114,48 @@ def main(argv=None):
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
 
-
+    # try to make output directory
     try:
         os.makedirs(FLAGS.output_dir)
     except OSError as e:
         if e.errno != 17:
             raise
-
+    
+    # set up
     with tf.get_default_graph().as_default():
         input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
         global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
-
         f_score, f_geometry = model.model(input_images, is_training=False)
-
         variable_averages = tf.train.ExponentialMovingAverage(0.997, global_step)
         saver = tf.train.Saver(variable_averages.variables_to_restore())
 
         with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+            # load model from checkpoint
             ckpt_state = tf.train.get_checkpoint_state(FLAGS.checkpoint_path)
             model_path = os.path.join(FLAGS.checkpoint_path, os.path.basename(ckpt_state.model_checkpoint_path))
             print('Restore from {}'.format(model_path))
             saver.restore(sess, model_path)
 
+            # loop through images and do a forward pass
             im_fn_list = get_images()
             for im_fn in im_fn_list:
+                # read in image
                 im = cv2.imread(im_fn)[:, :, ::-1]
                 start_time = time.time()
                 im_resized, (ratio_h, ratio_w) = resize_image(im)
 
+                # do a forward pass
                 timer = {'net': 0, 'restore': 0, 'nms': 0}
                 start = time.time()
                 score, geometry = sess.run([f_score, f_geometry], feed_dict={input_images: [im_resized]})
                 timer['net'] = time.time() - start
 
+                # take the scores and geometry and output boxes
                 boxes, timer = detect(score_map=score, geo_map=geometry, timer=timer)
                 print('{} : net {:.0f}ms, restore {:.0f}ms, nms {:.0f}ms'.format(
                     im_fn, timer['net']*1000, timer['restore']*1000, timer['nms']*1000))
 
+                # if there are boxes, reformat them
                 if boxes is not None:
                     boxes = boxes[:, :8].reshape((-1, 4, 2))
                     boxes[:, :, 0] /= ratio_w
@@ -185,7 +180,11 @@ def main(argv=None):
                             f.write('{},{},{},{},{},{},{},{}\r\n'.format(
                                 box[0, 0], box[0, 1], box[1, 0], box[1, 1], box[2, 0], box[2, 1], box[3, 0], box[3, 1],
                             ))
+                            box_2 = box
                             cv2.polylines(im[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True, color=(255, 255, 0), thickness=1)
+                            cv2.circle(im[:, :, ::-1], (box_2[0,0], box_2[0,1]), 5, (255,0,0), -1)
+                            cv2.circle(im[:, :, ::-1], (box_2[1,0], box_2[1,1]), 5, (0,255,0), -1)
+                            cv2.circle(im[:, :, ::-1], (box_2[2,0], box_2[2,1]), 5, (0,0,255), -1)
                 if not FLAGS.no_write_images:
                     img_path = os.path.join(FLAGS.output_dir, os.path.basename(im_fn))
                     cv2.imwrite(img_path, im[:, :, ::-1])

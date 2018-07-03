@@ -4,13 +4,13 @@ import tensorflow as tf
 from tensorflow.contrib import slim
 
 tf.app.flags.DEFINE_integer('input_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size_per_gpu', 14, '')
-tf.app.flags.DEFINE_integer('num_readers', 16, '')
+tf.app.flags.DEFINE_integer('batch_size_per_gpu', 1, '')
+tf.app.flags.DEFINE_integer('num_readers', 1, '')
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, '')
 tf.app.flags.DEFINE_integer('max_steps', 100000, '')
 tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
-tf.app.flags.DEFINE_string('gpu_list', '1', '')
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_resnet_v1_50_rbox/', '')
+tf.app.flags.DEFINE_string('gpu_list', '0', '')
+tf.app.flags.DEFINE_string('checkpoint_path', 'east_resnet_v1_50_rbox/', '')
 tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
 tf.app.flags.DEFINE_integer('save_checkpoint_steps', 1000, '')
 tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
@@ -103,6 +103,7 @@ def main(argv=None):
     for i, gpu_id in enumerate(gpus):
         with tf.device('/gpu:%d' % gpu_id):
             with tf.name_scope('model_%d' % gpu_id) as scope:
+                print '/gpu:%d' % gpu_id
                 iis = input_images_split[i]
                 isms = input_score_maps_split[i]
                 igms = input_geo_maps_split[i]
@@ -134,7 +135,7 @@ def main(argv=None):
     if FLAGS.pretrained_model_path is not None:
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
-    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)) as sess:
         if FLAGS.restore:
             print('continue training from previous checkpoint')
             ckpt = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
@@ -150,7 +151,9 @@ def main(argv=None):
 
         start = time.time()
         for step in range(FLAGS.max_steps):
+            print 'get data'
             data = next(data_generator)
+            print 'run model'
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
                                                                                 input_score_maps: data[2],
                                                                                 input_geo_maps: data[3],
