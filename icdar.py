@@ -9,12 +9,13 @@ import scipy.optimize
 import matplotlib.pyplot as plt
 import matplotlib.patches as Patches
 from shapely.geometry import Polygon
+import cProfile, pstats, StringIO
 
 import tensorflow as tf
 
 from data_util import GeneratorEnqueuer
 
-tf.app.flags.DEFINE_string('training_data_path', 'training_data/',
+tf.app.flags.DEFINE_string('training_data_path', 'custom_training/',
                            'training dataset to use')
 tf.app.flags.DEFINE_integer('max_image_large_side', 512,
                             'max image size of training')
@@ -41,12 +42,7 @@ def get_images():
     return files
 
 
-def load_annoataion(p):
-    '''
-    load annotation from the text file
-    :param p:
-    :return:
-    '''
+def load_annotation(p):
     text_polys = []
     text_tags = []
     if not os.path.exists(p):
@@ -68,11 +64,6 @@ def load_annoataion(p):
 
 
 def polygon_area(poly):
-    '''
-    compute area of a polygon
-    :param poly:
-    :return:
-    '''
     edge = [
         (poly[1][0] - poly[0][0]) * (poly[1][1] + poly[0][1]),
         (poly[2][0] - poly[1][0]) * (poly[2][1] + poly[1][1]),
@@ -83,13 +74,6 @@ def polygon_area(poly):
 
 
 def check_and_validate_polys(polys, tags, xxx_todo_changeme):
-    '''
-    check so that the text poly is in the same direction,
-    and also filter some invalid polygons
-    :param polys:
-    :param tags:
-    :return:
-    '''
     (h, w) = xxx_todo_changeme
     if polys.shape[0] == 0:
         return polys
@@ -113,15 +97,6 @@ def check_and_validate_polys(polys, tags, xxx_todo_changeme):
 
 
 def crop_area(im, polys, tags, crop_background=False, max_tries=50):
-    '''
-    make random crop from the input image
-    :param im:
-    :param polys:
-    :param tags:
-    :param crop_background:
-    :param max_tries:
-    :return:
-    '''
     h, w, _ = im.shape
     pad_h = h//10
     pad_w = w//10
@@ -177,13 +152,6 @@ def crop_area(im, polys, tags, crop_background=False, max_tries=50):
 
 
 def shrink_poly(poly, r):
-    '''
-    fit a poly inside the origin poly, maybe bugs here...
-    used for generate the score map
-    :param poly: the text poly
-    :param r: r in the paper
-    :return: the shrinked poly
-    '''
     # shrink ratio
     R = 0.3
     # find the longer pair
@@ -292,11 +260,6 @@ def line_verticle(line, point):
 
 
 def rectangle_from_parallelogram(poly):
-    '''
-    fit a rectangle from a parallelogram
-    :param poly:
-    :return:
-    '''
     p0, p1, p2, p3 = poly
     angle_p0 = np.arccos(np.dot(p1-p0, p3-p0)/(np.linalg.norm(p0-p1) * np.linalg.norm(p3-p0)))
     if angle_p0 < 0.5 * np.pi:
@@ -606,7 +569,7 @@ def generator(input_size=512, batch_size=32,
                     print('text file {} does not exists'.format(txt_fn))
                     continue
 
-                text_polys, text_tags = load_annoataion(txt_fn)
+                text_polys, text_tags = load_annotation(txt_fn)
 
                 text_polys, text_tags = check_and_validate_polys(text_polys, text_tags, (h, w))
                 # if text_polys.shape[0] == 0:
@@ -655,23 +618,18 @@ def generator(input_size=512, batch_size=32,
                     text_polys[:, :, 0] *= resize_ratio_3_x
                     text_polys[:, :, 1] *= resize_ratio_3_y
                     new_h, new_w, _ = im.shape
+                    print 'score, geo, training'
+                    pr = cProfile.Profile()
+                    pr.enable()
                     score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
+                    pr.disable()
+                    s = StringIO.StringIO()
+                    ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+                    ps.print_stats()
+                    print s.getvalue()
 
                 if vis:
                     fig, axs = plt.subplots(3, 2, figsize=(20, 30))
-                    # axs[0].imshow(im[:, :, ::-1])
-                    # axs[0].set_xticks([])
-                    # axs[0].set_yticks([])
-                    # for poly in text_polys:
-                    #     poly_h = min(abs(poly[3, 1] - poly[0, 1]), abs(poly[2, 1] - poly[1, 1]))
-                    #     poly_w = min(abs(poly[1, 0] - poly[0, 0]), abs(poly[2, 0] - poly[3, 0]))
-                    #     axs[0].add_artist(Patches.Polygon(
-                    #         poly * 4, facecolor='none', edgecolor='green', linewidth=2, linestyle='-', fill=True))
-                    #     axs[0].text(poly[0, 0] * 4, poly[0, 1] * 4, '{:.0f}-{:.0f}'.format(poly_h * 4, poly_w * 4),
-                    #                    color='purple')
-                    # axs[1].imshow(score_map)
-                    # axs[1].set_xticks([])
-                    # axs[1].set_yticks([])
                     axs[0, 0].imshow(im[:, :, ::-1])
                     axs[0, 0].set_xticks([])
                     axs[0, 0].set_yticks([])
@@ -722,8 +680,9 @@ def generator(input_size=512, batch_size=32,
 def get_batch(num_workers, **kwargs):
     try:
         enqueuer = GeneratorEnqueuer(generator(**kwargs), use_multiprocessing=True)
-        print('Generator use 10 batches for buffering, this may take a while, you can tune this yourself.')
-        enqueuer.start(max_queue_size=10, workers=num_workers)
+        num_batches = 1
+        print('Generator uses',num_batches,'batches for buffering, this may take a while, you can tune this yourself.')
+        enqueuer.start(max_queue_size=num_batches, workers=num_workers)
         generator_output = None
         while True:
             while enqueuer.is_running():
@@ -737,7 +696,6 @@ def get_batch(num_workers, **kwargs):
     finally:
         if enqueuer is not None:
             enqueuer.stop()
-
 
 
 if __name__ == '__main__':

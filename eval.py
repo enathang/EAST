@@ -4,11 +4,12 @@ import math
 import os
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.client import timeline
 
 import locality_aware_nms as nms_locality
 import lanms
 
-tf.app.flags.DEFINE_string('test_data_path', 'maps/', '')
+tf.app.flags.DEFINE_string('test_data_path', 'maps/temp/', '')
 tf.app.flags.DEFINE_string('gpu_list', '0', '')
 tf.app.flags.DEFINE_string('checkpoint_path', 'east_icdar2015_resnet_v1_50_rbox/', '')
 tf.app.flags.DEFINE_string('output_dir', 'output/', '')
@@ -20,10 +21,6 @@ from icdar import restore_rectangle
 FLAGS = tf.app.flags.FLAGS
 
 def get_images():
-    '''
-    find image files in test data path
-    :return: list of files found
-    '''
     files = []
     exts = ['jpg', 'png', 'jpeg', 'JPG', 'tiff', 'TIFF']
     for parent, dirnames, filenames in os.walk(FLAGS.test_data_path):
@@ -37,12 +34,6 @@ def get_images():
 
 
 def resize_image(im, max_side_len=2400):
-    '''
-    resize image to a size multiple of 32 which is required by the network
-    :param im: the resized image
-    :param max_side_len: limit of max image size to avoid out of memory in gpu
-    :return: the resized image and the resize ratio
-    '''
     h, w, _ = im.shape
 
     resize_w = w
@@ -111,6 +102,8 @@ def sort_poly(p):
 
 
 def main(argv=None):
+    #pr = cProfile.Profile()
+    #pr.enable()
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
 
@@ -136,6 +129,12 @@ def main(argv=None):
             print('Restore from {}'.format(model_path))
             saver.restore(sess, model_path)
 
+            # tensorboard
+            writer = tf.summary.FileWriter("tmp/1")
+            writer.add_graph(sess.graph)
+            writer.flush()
+            writer.close()
+            
             # loop through images and do a forward pass
             im_fn_list = get_images()
             for im_fn in im_fn_list:
@@ -144,10 +143,14 @@ def main(argv=None):
                 start_time = time.time()
                 im_resized, (ratio_h, ratio_w) = resize_image(im)
 
+                # set up profiler
+                options = tf.RunOptions(trace_level = tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+
                 # do a forward pass
                 timer = {'net': 0, 'restore': 0, 'nms': 0}
                 start = time.time()
-                score, geometry = sess.run([f_score, f_geometry], feed_dict={input_images: [im_resized]})
+                score, geometry = sess.run([f_score, f_geometry], feed_dict={input_images: [im_resized]}, options=options, run_metadata=run_metadata)
                 timer['net'] = time.time() - start
 
                 # take the scores and geometry and output boxes
@@ -188,6 +191,13 @@ def main(argv=None):
                 if not FLAGS.no_write_images:
                     img_path = os.path.join(FLAGS.output_dir, os.path.basename(im_fn))
                     cv2.imwrite(img_path, im[:, :, ::-1])
+                
+                # save info for profiling
+                fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+                chrome_trace = fetched_timeline.generate_chrome_trace_format()
+                with open ('timeline_01.json', 'w') as f:
+                    f.write(chrome_trace)
+
 
 if __name__ == '__main__':
     tf.app.run()
