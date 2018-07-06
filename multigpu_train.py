@@ -9,7 +9,7 @@ tf.app.flags.DEFINE_integer('input_size', 512, '')
 tf.app.flags.DEFINE_integer('batch_size_per_gpu', 1, '')
 tf.app.flags.DEFINE_integer('num_readers', 1, '')
 tf.app.flags.DEFINE_float('learning_rate', 0.0001, '')
-tf.app.flags.DEFINE_integer('max_steps', 5, '')
+tf.app.flags.DEFINE_integer('max_steps', 200, '')
 tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
 tf.app.flags.DEFINE_string('gpu_list', '0', '')
 tf.app.flags.DEFINE_string('checkpoint_path', 'east_resnet_v1_50_rbox/', '')
@@ -77,13 +77,22 @@ def main(argv=None):
             tf.gfile.MkDir(FLAGS.checkpoint_path)
 
     # get training data
-    input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
-    input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
-    if FLAGS.geometry == 'RBOX':
-        input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 5], name='input_geo_maps')
-    else:
-        input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 8], name='input_geo_maps')
-    input_training_masks = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_training_masks')
+    data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
+                                     input_size=FLAGS.input_size,
+                                     batch_size=FLAGS.batch_size_per_gpu * len(gpus))
+    data = next(data_generator)
+    #input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
+    #input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
+    input_images = tf.constant(np.asarray(data[0]))
+    input_score_maps = tf.constant(np.asarray(data[2]))
+    input_geo_maps = tf.constant(np.asarray(data[3]))
+    input_training_masks = tf.constant(np.asarray(data[4]))
+
+    #if FLAGS.geometry == 'RBOX':
+    #    input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 5], name='input_geo_maps')
+    #else:
+    #    input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 8], name='input_geo_maps')
+    #input_training_masks = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_training_masks')
 
     # establish gradient descent
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
@@ -154,24 +163,24 @@ def main(argv=None):
                 variable_restore_op(sess)
 
         # get a batch of data to train on
-        data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
-                                         input_size=FLAGS.input_size,
-                                         batch_size=FLAGS.batch_size_per_gpu * len(gpus))
+        #data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
+        #                                 input_size=FLAGS.input_size,
+        #                                 batch_size=FLAGS.batch_size_per_gpu * len(gpus))
 
         # train the model for each step
         start = time.time()
         for step in range(FLAGS.max_steps):
 
             # get data to train
-            import cProfile, pstats, StringIO
-            pr = cProfile.Profile()
-            pr.enable()
-            data = next(data_generator)
-            pr.disable()
-            s = StringIO.StringIO()
-            ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
-            ps.print_stats()
-            print s.getvalue()
+            #import cProfile, pstats, StringIO
+            #pr = cProfile.Profile()
+            #pr.enable()
+            #data = next(data_generator)
+            #pr.disable()
+            #s = StringIO.StringIO()
+            #ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+            #ps.print_stats()
+            #print s.getvalue()
 
             # do a forward pass
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],

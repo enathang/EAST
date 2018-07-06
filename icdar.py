@@ -618,15 +618,15 @@ def generator(input_size=512, batch_size=32,
                     text_polys[:, :, 0] *= resize_ratio_3_x
                     text_polys[:, :, 1] *= resize_ratio_3_y
                     new_h, new_w, _ = im.shape
-                    print 'score, geo, training'
-                    pr = cProfile.Profile()
-                    pr.enable()
+                    #print 'score, geo, training'
+                    #pr = cProfile.Profile()
+                    #pr.enable()
                     score_map, geo_map, training_mask = generate_rbox((new_h, new_w), text_polys, text_tags)
-                    pr.disable()
-                    s = StringIO.StringIO()
-                    ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
-                    ps.print_stats()
-                    print s.getvalue()
+                    #pr.disable()
+                    #s = StringIO.StringIO()
+                    #ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+                    #ps.print_stats()
+                    #print s.getvalue()
 
                 if vis:
                     fig, axs = plt.subplots(3, 2, figsize=(20, 30))
