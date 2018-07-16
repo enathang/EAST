@@ -18,6 +18,7 @@ tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
 
 import model
 import icdar
+import pipeline
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -65,8 +66,54 @@ def average_gradients(tower_grads):
 
     return average_grads
 
+'''
+def get_train_op(true_cls, pred_cls, true_geo, pred_geo, training_mask):
+    loss = model.loss(true_cls, pred_cls, true_geo, pred_geo, training_mask)
+    
+    learning_rate = tf.train.exponential_decay(
+        FLAGS.learning_rate,
+        tf.train.get_global_step(),
+        FLAGS.decay_steps,
+        FLAGS.decay_rate,
+        staircase=FLAGS.decay_staircase,
+        name='learning_rate')
+
+    optimizer = tf.train.AdamOptimizer(
+        learning_rate=learning_rate,
+        beta1=FLAGS.momentum)
+
+    train_op = tf.contrib.layers.optimize_loss(
+        loss=loss
+        global_step=tf.train.get_global_step(),
+        learning_rate=learning_rate,
+        optimizers=optimizers,
+        variables=variables)
+
+    return train_op
+'''
 
 def main(argv=None):
+    # hyperparameters
+    tile_size = 512
+    batch_size = 1
+    num_iter = 1000
+
+    # data
+    dataset = pipeline.get_batch(tile_size, batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    data = iterator.get_next()
+
+    # train
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+        for i in range(num_iter):
+            train_op = None
+            sess.run(train_op, data)
+
+        # test
+        print sess.run(data)
+
+
+def main1(argv=None):
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
     if not tf.gfile.Exists(FLAGS.checkpoint_path):
@@ -134,6 +181,8 @@ def main(argv=None):
     if FLAGS.pretrained_model_path is not None:
         variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
+
+
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if FLAGS.restore:
             print('continue training from previous checkpoint')
@@ -147,14 +196,16 @@ def main(argv=None):
         data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
                                          input_size=FLAGS.input_size,
                                          batch_size=FLAGS.batch_size_per_gpu * len(gpus))
+        data = next(data_generator)
+        
 
         start = time.time()
         for step in range(FLAGS.max_steps):
             data = next(data_generator)
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
-                                                                                input_score_maps: data[2],
-                                                                                input_geo_maps: data[3],
-                                                                                input_training_masks: data[4]})
+                                                                                             input_score_maps: data[2],
+                                                                                             input_geo_maps: data[3],
+                                                                                             input_training_masks: data[4]})
             if np.isnan(tl):
                 print('Loss diverged, stop training')
                 break

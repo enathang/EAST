@@ -5,10 +5,19 @@ import importlib
 import numpy as np
 from shapely.geometry.polygon import Polygon
 
-# takes in the top left coord of the tile, the tile size,
-# and a list of Polygon ground_truths and returns a list
-# of Polygon ground_truths that intersect the tile
+
 def cropGroundTruths(x, y, tile_size, gt_coords, gt_polys):
+    """
+    Takes a tile location+dimensions and finds all ground truths that
+    intersect that tile
+
+    param x: the x-coord of the top-left vertex of the tile
+    param y: the y-coord of the top-left vertex of the tile
+    param tile_size: the length of the tile side
+    param gt_coords: a list of the ground truths in the form of the vertices
+    param gt_polys: a list of the ground truths in the form of Shapely polygons
+    returns: a list of shifted ground truths that intersect the tile
+    """
     tile = Polygon([(x, y), (x, y+tile_size), (x+tile_size, y+tile_size), (x+tile_size, y)])
     intersects_tile = [tile.intersects(gt) for gt in gt_polys]
     intersects_tile = np.asarray(intersects_tile)
@@ -24,9 +33,16 @@ def cropGroundTruths(x, y, tile_size, gt_coords, gt_polys):
     return keep_gt
 
 
-# takes an image and crops a random tile, then gets
-# the cropped ground truths
-def getRandomTile(img, gt_coords, gt_polys, tile_size, scale):
+def getRandomTile(img, gt_coords, gt_polys, tile_size):
+    """
+    Takes an image, crops a tile, and then calculates thr ground truths
+
+    param img: the image to take a tile from
+    param gt_coords: the list of ground truths in the form of vertices
+    param gt_polys: the list of ground truths in the form of Shapely polygons
+    param tile_size: the length of the tile side
+    returns: the tile and ground truths
+    """
     h = len(img)
     w = len(img[0])
     x = random.randint(0, w-tile_size)
@@ -39,6 +55,14 @@ def getRandomTile(img, gt_coords, gt_polys, tile_size, scale):
 
 # reads a ground truth file and returns a list of ground truth Polygons
 def parseGroundTruths(file):
+    """
+    Reads a ground truth file and returns a list, where the first element is
+    the list of ground truths in the form of vertices and the second element
+    is the list of ground truths in the form of Shapely objects
+
+    param file: the name of the file to parse
+    returns: points (4x2xN array) and polygons (list of Shapely polygons)
+    """
     icdar = importlib.import_module('icdar')
     points = list()
     polygons = list()
@@ -51,7 +75,6 @@ def parseGroundTruths(file):
         p4 = [float(v[6]), float(v[7])]
         verts = [p1, p2, p3, p4]
 
-        # icdar conversion and back
         # Assumes points are in clockwise order, which can
         # be changed in convert_data.py
         verts = np.asarray(verts)
@@ -69,6 +92,12 @@ def parseGroundTruths(file):
 
 # gets a list of the file names from the dir
 def getFilesFromDir(dir):
+    """
+    Gets a list of file names from a directory
+
+    param dir: the name of the directory
+    returns: a list of files in that directory
+    """
     files = []
     if os.path.isdir(dir):
         names = os.listdir(dir)

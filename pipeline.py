@@ -1,11 +1,6 @@
 import cv2
 import importlib
 
-# profiling
-import cProfile
-import pstats
-import StringIO
-
 import numpy as np
 import tensorflow as tf
 import random
@@ -15,15 +10,22 @@ from data_util import GeneratorEnqueuer
 
 tf.app.flags.DEFINE_string('image_dir', 'data/maps/train/', '')
 tf.app.flags.DEFINE_string('gt_dir', 'data/ground_truths/train/', '')
+tf.app.flags.DEFINE_integer('batch_size', '32', '')
+tf.app.flags.DEFINE_integer('tile_size', '512', '')
 FLAGS = tf.app.flags.FLAGS
 
 
-# creates a generator
-def generator(tile_size, batch_size, scale):
+def generateTiles(tile_size, batch_size):
+    """
+    Creates a tile generator that takes a map from memory, crops
+    a tile of size tile_size, and finds all ground truths inside that tile
+    
+    param tile_size: the length of the tile side
+    param batch_size: the number of tiles in the batch
+    returns: a generator
+    """
     # import modules
     pt = importlib.import_module('pipelineTiling')
-    pm = importlib.import_module('pipelineMaps')
-    icdar = importlib.import_module('icdar')
 
     # get image and gt file names
     image_files = pt.getFilesFromDir(FLAGS.image_dir)
@@ -37,80 +39,75 @@ def generator(tile_size, batch_size, scale):
     groundtruth_polys = [gt[1] for gt in groundtruths]
 
     while True:
-        tiles = list()
-        ground_truths = list()
-        geo_maps = list()
-        score_maps = list()
-        train_masks = list()
-        # try to get data
         try:
             # get random historical map
             random_index = random.randint(0, len(images)-1)
             image = images[random_index]
             gt_points = groundtruth_points[random_index]
             gt_polys = groundtruth_polys[random_index]
-            
-            #disp = importlib.import_module('displayBoxes')
-            #disp.displayImageModified(image, gt_points)
+            tile, mod_ground_truth = pt.getRandomTile(image, gt_points, gt_polys, tile_size)
+            # disp = importlib.import_module('displayBoxes')
+            # disp.displayImageModified(image, gt_points)
 
-            # crop random tile
-            #pr = cProfile.Profile()
-            #pr.enable()
-            tile, mod_ground_truth = pt.getRandomTile(image, gt_points, gt_polys, tile_size, scale)
-            #pr.disable()
-            #s = StringIO.StringIO()
-            #ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
-            #ps.print_stats()
-            #print s.getvalue()
-            # display tile and bboxes to debug
-            disp = importlib.import_module('displayBoxes')
-            disp.displayImageModified(tile, mod_ground_truth)
-            #input()
-            tiles.append(tile)
-            ground_truths.append(mod_ground_truth)
-
-            # generate maps for that tile
-            #pr = cProfile.Profile()
-            #pr.enable()
-            geo_map, score_map = pm.generate_maps((tile_size, tile_size), mod_ground_truth)
-            #pr.disable()
-            #s = StringIO.StringIO()
-            #ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
-            #ps.print_stats()
-            #print s.getvalue()
-            # display geo map and score map to debug
-            train_mask = 0
-            geo_maps.append(geo_map)
-            score_maps.append(score_map)
-            train_masks.append(train_mask)
-            # return if batch is filled
-            if len(tiles) == batch_size:
-                yield tiles, ground_truths, geo_maps, score_maps, train_masks
+            yield tile, mod_ground_truth
 
         except Exception as e:
             import traceback
             traceback.print_exc()
-            continue
-            
-#ds = ds.map(func=pyfunc, num_thread=2)
+            # continue
 
-#def pyfunc(tiles, ground_truth):
-#    return tiles, ground_truths#, geo_maps, score_maps, train_masks
-# prefetch large enough buffer size
 
-def a():
-    return gen(512, 1, 1)
+def generateMaps(tile, ground_truths):
+    """
+    Given a tile and ground truths, generate the geometry and score maps
+    and the training mask
 
-def get_batch(num_threads, tile_size, batch_size):
-    gen = generator(tile_size, batch_size, 1)
-    # what is output data type?
-    ds = tf.data.Dataset.from_generator(a, tf.int64, tf.TensorShape([None]))
-    value = ds.make_one_shot_iterator().get_next()
-    with tf.Session() as sess:
-        sess.run(value)
+    param tile: the map tile
+    param ground_truths: the list of ground truths that are contained in the tile
+    returns: the tile and ground truths, plus the generated maps and mask
+    """
+    tile_size = FLAGS.tile_size
+    pm = importlib.import_module('pipelineMaps')
+    geo_map, score_map = pm.generate_maps((tile_size, tile_size), ground_truths)
+    train_mask = 0
+    return tile, ground_truths, geo_map, score_map, train_mask
 
-    return value
+
+def generatorWrapper():
+    """
+    A wrapper for the tile generator
+
+    returns: a generator
+    """
+    return generateTiles(FLAGS.tile_size, FLAGS.batch_size)
+
+
+def get_batch(tile_size, batch_size):
+    """
+    Returns a batch generator
+
+    param tile_size: the side length of the square tile
+    param batch_size: the number of tiles per batch
+    returns: a dataset object that can generate tiles
+    """
+    FLAGS.tile_size = tile_size
+    prefetch_buffer_size = 1 # num of batches to prefetch
+    ds = tf.data.Dataset.from_generator(generatorWrapper, 
+                                        (tf.float32, tf.float32), 
+                                        output_shapes=(tf.TensorShape([tile_size, tile_size, 3]), tf.TensorShape([4, 2, None])))
+    ds = ds.apply(tf.contrib.data.map_and_batch(lambda tile, ground_truth: tf.py_func(generateMaps, 
+                                                                                      [tile, ground_truth], 
+                                                                                      [tf.float32, 
+                                                                                       tf.float32, 
+                                                                                       tf.float32, 
+                                                                                       tf.float32, 
+                                                                                       tf.int64]), 
+                                                batch_size))
+
+    return ds.prefetch(prefetch_buffer_size)
 
 
 if __name__ == '__main__':
-    batch = get_batch(num_threads=1, tile_size = 1024, batch_size = 1)
+    tile_size = 512
+    batch_size = 16
+    batch = get_batch(tile_size = tile_size, batch_size = batch_size)
