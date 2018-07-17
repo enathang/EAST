@@ -468,6 +468,7 @@ def generate_masks(im_size, polys):
         poly = poly_tag[0]
 
 
+# takes in ((h, w), Nx4x2, tags)
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
     poly_mask = np.zeros((h, w), dtype=np.uint8)

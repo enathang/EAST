@@ -21,11 +21,10 @@ def cropGroundTruths(x, y, tile_size, gt_coords, gt_polys):
     tile = Polygon([(x, y), (x, y+tile_size), (x+tile_size, y+tile_size), (x+tile_size, y)])
     intersects_tile = [tile.intersects(gt) for gt in gt_polys]
     intersects_tile = np.asarray(intersects_tile)
-    # NOTE: Might introduce a bug when only one polygon intersection is found
-    if (len(intersects_tile) == 1):
-        print 'intersect_tile has len 1'
+        
     keep_indices = np.squeeze(np.argwhere(intersects_tile))
     keep_gt = np.asarray(gt_coords[:,:,keep_indices])
+    print len(keep_gt), len(keep_gt[0]), keep_gt
     keep_gt[:,0,:] = keep_gt[:,0,:]-np.asarray([x])
     keep_gt[:,1,:] = keep_gt[:,1,:]-np.asarray([y])
     # TODO: Need to sort ground truths by area
