@@ -102,12 +102,13 @@ def main(argv=None):
     dataset = pipeline.get_batch(tile_size, batch_size)
     iterator = dataset.make_one_shot_iterator()
     data = iterator.get_next()
+    print data
 
     # train
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         for i in range(num_iter):
-            train_op = None
-            sess.run(train_op, data)
+            #train_op = None
+            sess.run(data)
 
         # test
         print sess.run(data)

@@ -15,13 +15,12 @@ tf.app.flags.DEFINE_integer('tile_size', '512', '')
 FLAGS = tf.app.flags.FLAGS
 
 
-def generateTiles(tile_size, batch_size):
+def generateTiles(tile_size):
     """
     Creates a tile generator that takes a map from memory, crops
     a tile of size tile_size, and finds all ground truths inside that tile
     
     param tile_size: the length of the tile side
-    param batch_size: the number of tiles in the batch
     returns: a generator
     """
     # import modules
@@ -37,6 +36,8 @@ def generateTiles(tile_size, batch_size):
     groundtruths = [pt.parseGroundTruths(_) for _ in gt_files]
     groundtruth_points = [gt[0] for gt in groundtruths]
     groundtruth_polys = [gt[1] for gt in groundtruths]
+    groundtruth_labels = [gt[2] for gt in groundtruths]
+    print groundtruth_labels
 
     while True:
         try:
@@ -46,8 +47,8 @@ def generateTiles(tile_size, batch_size):
             gt_points = groundtruth_points[random_index]
             gt_polys = groundtruth_polys[random_index]
             tile, mod_ground_truth = pt.getRandomTile(image, gt_points, gt_polys, tile_size)
-            # disp = importlib.import_module('displayBoxes')
-            # disp.displayImageModified(image, gt_points)
+            disp = importlib.import_module('displayBoxes')
+            disp.displayImageModified(image, gt_points)
 
             yield tile, mod_ground_truth
 
@@ -79,7 +80,7 @@ def generatorWrapper():
 
     returns: a generator
     """
-    return generateTiles(FLAGS.tile_size, FLAGS.batch_size)
+    return generateTiles(FLAGS.tile_size)
 
 
 def get_batch(tile_size, batch_size):
@@ -111,3 +112,4 @@ if __name__ == '__main__':
     tile_size = 512
     batch_size = 16
     batch = get_batch(tile_size = tile_size, batch_size = batch_size)
+        

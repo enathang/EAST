@@ -66,14 +66,16 @@ def parseGroundTruths(file):
     icdar = importlib.import_module('icdar')
     points = list()
     polygons = list()
+    labels = list()
     file = open(file, 'r')
     for line in file.readlines():
-        v = line[:-2].split(',')
+        v = line[:-1].split(',')
         p1 = [float(v[0]), float(v[1])]
         p2 = [float(v[2]), float(v[3])]
         p3 = [float(v[4]), float(v[5])]
         p4 = [float(v[6]), float(v[7])]
         verts = [p1, p2, p3, p4]
+        label = str(v[8])
 
         # Assumes points are in clockwise order, which can
         # be changed in convert_data.py
@@ -84,10 +86,11 @@ def parseGroundTruths(file):
         points.append(verts)
         poly = Polygon(verts)
         polygons.append(poly)
+        labels.append(label)
 
     print np.asarray(points).shape
     points = np.transpose(np.asarray(points), (1, 2, 0)) # Turn Nx4x2 to 4x2xN
-    return [points, polygons]
+    return [points, polygons, labels]
 
 
 # gets a list of the file names from the dir
