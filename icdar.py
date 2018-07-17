@@ -423,6 +423,17 @@ def restore_rectangle(origin, geometry):
     return restore_rectangle_rbox(origin, geometry)
 
 
+def generate_masks(im_size, polys):
+    h, w = im_size
+    poly_mask = np.zeros((h, w), dtype=np.uint8) # 
+    score_map = np.zeros((h, w), dtype=np.uint8) # text score map
+    geo_map = np.zeros((h, w, 5), dtype=np.float32) # geometry map (ground truths)
+    training_mask = np.ones((h, w), dtype=np.uint8)
+    for poly_id, poly_tag in enumerate(zip(polys, tags)):
+        poly = poly_tag[0]
+
+
+# takes in ((h, w), Nx4x2, tags)
 def generate_rbox(im_size, polys, tags):
     h, w = im_size
     poly_mask = np.zeros((h, w), dtype=np.uint8)
@@ -432,7 +443,7 @@ def generate_rbox(im_size, polys, tags):
     training_mask = np.ones((h, w), dtype=np.uint8)
     for poly_idx, poly_tag in enumerate(zip(polys, tags)):
         poly = poly_tag[0]
-        tag = poly_tag[1]
+        tag = poly_tag[1] # NOT SURE IF WE NEED
 
         r = [None, None, None, None]
         for i in range(4):
@@ -442,15 +453,15 @@ def generate_rbox(im_size, polys, tags):
         shrinked_poly = shrink_poly(poly.copy(), r).astype(np.int32)[np.newaxis, :, :]
         cv2.fillPoly(score_map, shrinked_poly, 1)
         cv2.fillPoly(poly_mask, shrinked_poly, poly_idx + 1)
-        # if the poly is too small, then ignore it during training
-        poly_h = min(np.linalg.norm(poly[0] - poly[3]), np.linalg.norm(poly[1] - poly[2]))
-        poly_w = min(np.linalg.norm(poly[0] - poly[1]), np.linalg.norm(poly[2] - poly[3]))
-        if min(poly_h, poly_w) < FLAGS.min_text_size:
-            cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
-        if tag:
-            cv2.fillPoly(training_mask, poly.astype(np.int32)[np.newaxis, :, :], 0)
 
         xy_in_poly = np.argwhere(poly_mask == (poly_idx + 1))
+        
+        for i in range(4):
+            p0 = poly[i]
+            p1 = poly[(i + 1) % 4]
+            p2 = poly[(i + 2) % 4]
+            p3 = poly[(i + 3) % 4]
+        
         # if geometry == 'RBOX':
         # 对任意两个顶点的组合生成一个平行四边形 - generate a parallelogram for any combination of two vertices
         fitted_parallelograms = []
@@ -523,8 +534,9 @@ def generate_rbox(im_size, polys, tags):
         min_coord_idx = np.argmin(parallelogram_coord_sum)
         parallelogram = parallelogram[
             [min_coord_idx, (min_coord_idx + 1) % 4, (min_coord_idx + 2) % 4, (min_coord_idx + 3) % 4]]
-
+        
         rectange = rectangle_from_parallelogram(parallelogram)
+        
         rectange, rotate_angle = sort_rectangle(rectange)
 
         p0_rect, p1_rect, p2_rect, p3_rect = rectange
