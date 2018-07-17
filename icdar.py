@@ -695,6 +695,7 @@ def get_batch(num_workers, **kwargs):
         num_batches = 1
         print('Generator uses',num_batches,'batches for buffering, this may take a while, you can tune this yourself.')
         enqueuer.start(max_queue_size=num_batches, workers=num_workers)
+
         generator_output = None
         while True:
             while enqueuer.is_running():
