@@ -128,7 +128,7 @@ def generate_maps(image_size, rects):
 
         # Invariant: rect_mask all 0 before this
         cv2.fillPoly(rect_mask, shrunk_rect, 1) 
-        
+
         # If we wanted to ignore rectangles that were too small, 
         # we might do so here    
         #rect_h = min( norm( rect[0]-rect[3]), norm(rect[1]-rect[2]))
@@ -137,9 +137,10 @@ def generate_maps(image_size, rects):
         #    cv2.fillPoly(training_mask, 
         #                 rect.astype(np.int32)[np.newaxis, :, :], 0)
 
-        xy_in_rect = np.argwhere( rect_mask == 1 )
-        cols = xy_in_rect[:,0]
-        rows = xy_in_rect[:,1]
+        yx_in_rect = np.argwhere( rect_mask == 1 )
+        xy_in_rect = yx_in_rect[:,::-1]
+        rows = yx_in_rect[:,0]
+        cols = yx_in_rect[:,1]
 
         # TODO: The original argman/EAST code does not do this, but I think 
         # it's important to ignore the pixels within the ground truth rectangle
@@ -150,7 +151,7 @@ def generate_maps(image_size, rects):
         geo_map[rows,cols,1] = dist_to_line( rect[1], rect[2], xy_in_rect)
         geo_map[rows,cols,2] = dist_to_line( rect[2], rect[3], xy_in_rect)
         geo_map[rows,cols,3] = dist_to_line( rect[3], rect[0], xy_in_rect)
-        geo_map[rows,cols,4] = get_angle( rect[1] - rect[0])[0]
+        geo_map[rows,cols,4] = -get_angle( rect[1] - rect[0])[0] # invert for ij
 
         rect_mask[rows,cols] = 0 # Restore invariant
 
@@ -160,6 +161,6 @@ def generate_maps(image_size, rects):
     # I'm fairly certain the loss function will want the score to be a
     # float. We store it intermediately to conserve space, and only
     # convert afer downsampling.
-    
+  
     return score_map[::4,::4, np.newaxis].astype(np.float32), \
         geo_map[::4,::4,:]
