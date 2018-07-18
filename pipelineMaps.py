@@ -128,6 +128,8 @@ def generate_maps(image_size, rects):
 
         # Invariant: rect_mask all 0 before this
         cv2.fillPoly(rect_mask, shrunk_rect, 1) 
+        
+        print rect, -get_angle( rect[1] - rect[0])[0] # REMOVE AFTER GT FIXED
 
         # If we wanted to ignore rectangles that were too small, 
         # we might do so here    

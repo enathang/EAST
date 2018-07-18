@@ -1,6 +1,9 @@
 import importlib
 import cv2
 import numpy as np
+import random
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 def mapsRegressionTest():
     # import modules
@@ -27,20 +30,29 @@ def mapsRegressionTest():
     # compare
     np.set_printoptions(threshold=np.nan)
 
-    print 'icdar score (row 0):', np.squeeze(icdar_score[0])
-    print 'pipeline score (row 0):', pl_score[0]
+    #print 'icdar score (row 0):', np.squeeze(icdar_score[0])
+    #print 'pipeline score (row 0):', pl_score[0]
 
-    print 'icdar geometry (row 0):', icdar_geo[0]
-    print 'pipeline geometry (row 0):', pl_geo[0]
+    #print 'icdar geometry (row 0):', icdar_geo[0]
+    #print 'pipeline geometry (row 0):', pl_geo[0]
 
     # code taken from https://stackoverflow.com/questions/32105954/how-can-i-write-a-binary-array-as-an-image-in-python
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
 
     tile = tile[::4, ::4, :]
-    plt.imsave('tile.png', tile)
-    plt.imsave('icdar_score.png', icdar_score.reshape(128, 128), cmap=cm.gray)
-    plt.imsave('pipeline_score.png', pl_score.reshape(128, 128), cmap=cm.gray)
+    #plt.imsave('tile.png', tile)
+    #plt.imsave('icdar_score.png', icdar_score.reshape(128, 128), cmap=cm.gray)
+    #plt.imsave('pipeline_score.png', pl_score.reshape(128, 128), cmap=cm.gray)
+
+    #plt.imshow(icdar_geo[:,:,3])
+    #plt.colorbar()
+    #plt.figure()
+    #plt.imshow(pl_geo[:,:,3])
+    #plt.colorbar()
+    #plt.show()
+
+    print 'MaxDiff', np.squeeze(np.amax(np.amax(np.abs(icdar_geo - pl_geo),axis=0),axis=0))
 
 if __name__ == '__main__':
+    random.seed(69)
+    np.random.seed(69)
     mapsRegressionTest()

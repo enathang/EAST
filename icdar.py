@@ -539,6 +539,8 @@ def generate_rbox(im_size, polys, tags):
         
         rectange, rotate_angle = sort_rectangle(rectange)
 
+        print rectange, rotate_angle
+
         p0_rect, p1_rect, p2_rect, p3_rect = rectange
         for y, x in xy_in_poly:
             point = np.array([x, y], dtype=np.float32)
