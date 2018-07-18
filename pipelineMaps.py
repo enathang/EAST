@@ -28,66 +28,6 @@ def get_angle ( line_segment ):
     cos_sin = np.array([np.cos(angle), np.sin(angle)])
     return angle, cos_sin
 
-def shrink_01_32( shrunk, rect, reference_lengths, shrink_ratio):
-    """ Modify four rectangle points by shrinking the <p0,p1> and <p2,p3>
-    segments.
-
-    Parameters:
-       shrunk: A 4x2 np array containing the four coordinates of the rectangle
-               to be modified
-       rect:  A 4x2 np array containing the four coordinates of the original
-              rectangle
-       reference_lengths: A length 4 list containing the lengths of the 
-                          (pre-shrink) four rectangle sides
-       shrink_ratio: A scalar in (0, 0.5) indicating by how much to move each 
-                     point along the line segment representing a rectangle 
-                     side. 
-    Returns:
-       Nothing. Called for the side-effect on shrunk: The sides <p0,p1> and 
-       <p2,p3> are moved "inward" by the relative factor shrink_ratio.
-    """
-    # Remember that numpy is pass by reference, 
-    # so the change to shrunk takes a side-effect in the caller, too
-
-    # <p0,p1>
-    cos_sin = get_angle(rect[1] - rect[0])[1]
-    shrunk[0] += shrink_ratio * reference_lengths[0] * cos_sin
-    shrunk[1] -= shrink_ratio * reference_lengths[1] * cos_sin
-    # <p3,p2>
-    cos_sin = get_angle(rect[2] - rect[3])[1] 
-    shrunk[3] += shrink_ratio * reference_lengths[3] * cos_sin
-    shrunk[2] -= shrink_ratio * reference_lengths[2] * cos_sin
-
-def shrink_03_12( shrunk, rect, reference_lengths, shrink_ratio ):
-    """ Modify four rectangle points by shrinking the <p0,p3> and <p1,p2>
-    segments.
-
-    Parameters:
-       shrunk: A 4x2 np array containing the four coordinates of the rectangle
-               to be modified
-       rect:  A 4x2 np array containing the four coordinates of the original
-              rectangle
-       reference_lengths: A length 4 list containing the lengths of the 
-                          (pre-shrink) four rectangle sides
-       shrink_ratio: A scalar in (0, 0.5) indicating by how much to move each 
-                     point along the line segment representing a rectangle 
-                     side. 
-    Returns:
-       Nothing. Called for the side-effect on shrunk: The sides <p0,p3> and 
-       <p1,p2> are moved "inward" by the relative factor shrink_ratio.
-    """
-    # Remember that numpy is pass by reference, 
-    # so the change to shrunk takes a side-effect in the caller, too
-
-    # <p0,p3>
-    cos_sin = get_angle(rect[3]-rect[0])[1]
-    shrunk[0] += shrink_ratio * reference_lengths[0] * cos_sin[::-1]
-    shrunk[3] -= shrink_ratio * reference_lengths[3] * cos_sin[::-1]
-    # <p1,p2>
-    cos_sin = get_angle(rect[2]-rect[1])[1]
-    shrunk[1] += shrink_ratio * reference_lengths[1] * cos_sin[::-1]
-    shrunk[2] -= shrink_ratio * reference_lengths[2] * cos_sin[::-1]
-
 
 def shrink_rect( rect, shrink_ratio=0.3 ):
     """ Shrink the edges of a rectangle by a fixed relative factor. The
@@ -117,17 +57,21 @@ def shrink_rect( rect, shrink_ratio=0.3 ):
     len_01_32 = norm(rect[0] - rect[1]) + norm(rect[3] - rect[2])
     len_03_12 = norm(rect[0] - rect[3]) + norm(rect[1] - rect[2])
 
+    # Local helper function to shrink a line segment <start,end>
+    def shrink(start,end):
+        cos_sin = get_angle(rect[end]-rect[start])[1]
+        shrunk[start] += shrink_ratio * reference_lengths[start] * cos_sin
+        shrunk[end]   -= shrink_ratio * reference_lengths[end]   * cos_sin
+    # Local helper function to shrink all edges in given order
+    def shrink_edges(edges):
+        for edge in edges:
+            shrink(edge[0],edge[1])
+
     # Move the longer axes first then shorter axes 
     if len_01_32 > len_03_12:
-        # Longer axes
-        shrink_01_32( shrunk, rect, reference_lengths, shrink_ratio)
-        # Shorter axes
-        shrink_03_12( shrunk, rect, reference_lengths, shrink_ratio)
+        shrink_edges( [[0,1],[3,2],[0,3],[1,2]] )
     else:
-        # Longer axes
-        shrink_03_12( shrunk, rect, reference_lengths, shrink_ratio)
-        # Shorter axes
-        shrink_01_32( shrunk, rect, reference_lengths, shrink_ratio)
+        shrink_edges( [[0,3],[1,2],[0,1],[3,2]] )
 
     return shrunk
 
@@ -179,14 +123,19 @@ def generate_maps(image_size, rects):
         # Shrink the rectangle, and put in a fillPoly-friendly format
         shrunk_rect = shrink_rect( rect ).astype(np.int32)[np.newaxis,:,:]
 
-        cv2.fillPoly(score_map, shrunk_rect, 1) # Set ground truth pixels to detect
-        cv2.fillPoly(rect_mask, shrunk_rect, 1) # Invariant: All 0 before this
+        # Set ground truth pixels to detect
+        cv2.fillPoly(score_map, shrunk_rect, 1) 
+
+        # Invariant: rect_mask all 0 before this
+        cv2.fillPoly(rect_mask, shrunk_rect, 1) 
         
-        # If we wanted to ignore rectangles that were too small, we might do so here    
+        # If we wanted to ignore rectangles that were too small, 
+        # we might do so here    
         #rect_h = min( norm( rect[0]-rect[3]), norm(rect[1]-rect[2]))
         #rect_w = min( norm( rect[0]-rect[1]), norm(rect[2]-poly[3]))
         #if min(rect_h, rect_w) < MIN_POLY_SIZE:
-        #    cv2.fillPoly(training_mask, rect.astype(np.int32)[np.newaxis, :, :], 0)
+        #    cv2.fillPoly(training_mask, 
+        #                 rect.astype(np.int32)[np.newaxis, :, :], 0)
 
         xy_in_rect = np.argwhere( rect_mask == 1 )
         cols = xy_in_rect[:,0]
@@ -203,13 +152,10 @@ def generate_maps(image_size, rects):
         geo_map[rows,cols,3] = dist_to_line( rect[3], rect[0], xy_in_rect)
         geo_map[rows,cols,4] = get_angle( rect[1] - rect[0])[0]
 
-        rect_mask.fill(0) # Restore invariant
+        rect_mask[rows,cols] = 0 # Restore invariant
 
         # If we decide never to modify training_mask,
         # we don't need to generate/return it.
-        #
-        # That said, perhaps we'd want to track the rectangles labeled
-        # "unreadable" and exclude them
 
     # I'm fairly certain the loss function will want the score to be a
     # float. We store it intermediately to conserve space, and only
