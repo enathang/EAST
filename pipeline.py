@@ -37,7 +37,6 @@ def generateTiles(tile_size):
     groundtruth_points = [gt[0] for gt in groundtruths]
     groundtruth_polys = [gt[1] for gt in groundtruths]
     groundtruth_labels = [gt[2] for gt in groundtruths]
-    print groundtruth_labels
 
     while True:
         try:
@@ -47,8 +46,8 @@ def generateTiles(tile_size):
             gt_points = groundtruth_points[random_index]
             gt_polys = groundtruth_polys[random_index]
             tile, mod_ground_truth = pt.getRandomTile(image, gt_points, gt_polys, tile_size)
-            disp = importlib.import_module('displayBoxes')
-            disp.displayImageModified(image, gt_points)
+            #disp = importlib.import_module('displayBoxes')
+            #disp.displayImageModified(image, gt_points)
 
             yield tile, mod_ground_truth
 
@@ -70,7 +69,7 @@ def generateMaps(tile, ground_truths):
     tile_size = FLAGS.tile_size
     pm = importlib.import_module('pipelineMaps')
     geo_map, score_map = pm.generate_maps((tile_size, tile_size), ground_truths)
-    train_mask = 0
+    train_mask = np.ones(FLAGS.tile_size, FLAGS.tile_size)
     return tile, ground_truths, geo_map, score_map, train_mask
 
 

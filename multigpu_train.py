@@ -67,7 +67,9 @@ def average_gradients(tower_grads):
     return average_grads
 
 '''
+
 def get_train_op(true_cls, pred_cls, true_geo, pred_geo, training_mask):
+
     loss = model.loss(true_cls, pred_cls, true_geo, pred_geo, training_mask)
     
     learning_rate = tf.train.exponential_decay(
@@ -92,29 +94,40 @@ def get_train_op(true_cls, pred_cls, true_geo, pred_geo, training_mask):
     return train_op
 '''
 
-def main(argv=None):
-    # hyperparameters
+def getData(iterator):
+    tile, gt, geo, score, training_mask = iterator.get_next()
+    data = {'tiles': tile, 
+            'ground_truths': gt, 
+            'geometry_maps':geo, 
+            'score_maps': score, 
+            'training_masks': training_mask}
+
+    return data
+
+def main1(argv=None):
     tile_size = 512
     batch_size = 1
-    num_iter = 1000
+    num_iter = 5
 
     # data
     dataset = pipeline.get_batch(tile_size, batch_size)
     iterator = dataset.make_one_shot_iterator()
-    data = iterator.get_next()
-    print data
+    data = getData(iterator)
+    total_loss, model_loss = tower_loss(data['tiles'], 
+                      data['geometry_maps'], 
+                      data['score_maps'], 
+                      data['training_masks'])
 
     # train
-    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+    with tf.Session() as sess:
         for i in range(num_iter):
-            #train_op = None
-            sess.run(data)
+            tl, ml, _ = sess.run([loss, model_loss, train_op])
 
         # test
         print sess.run(data)
 
 
-def main1(argv=None):
+def main(argv=None):
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
     if not tf.gfile.Exists(FLAGS.checkpoint_path):
@@ -125,16 +138,20 @@ def main1(argv=None):
             tf.gfile.MkDir(FLAGS.checkpoint_path)
 
     # get training data
-    data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
-                                     input_size=FLAGS.input_size,
-                                     batch_size=FLAGS.batch_size_per_gpu * len(gpus))
-    data = next(data_generator)
+    # new data pipeline
+    dataset = pipeline.get_batch(512, 1)
+    iterator = dataset.make_one_shot_iterator()
+    data = getData(iterator)
+    input_images = tf.constant(np.asarray(data['tiles']))
+    input_score_maps = tf.constant(np.asarray(data['score_maps']))
+    input_geo_maps = tf.constant(np.asarray(data['geometry_maps']))
+    input_training_masks = tf.constant(np.asarray(data['training_masks']))
+
+    # old data pipeline
+
     #input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     #input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
-    input_images = tf.constant(np.asarray(data[0]))
-    input_score_maps = tf.constant(np.asarray(data[2]))
-    input_geo_maps = tf.constant(np.asarray(data[3]))
-    input_training_masks = tf.constant(np.asarray(data[4]))
+
 
     #if FLAGS.geometry == 'RBOX':
     #    input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 5], name='input_geo_maps')
@@ -230,10 +247,7 @@ def main1(argv=None):
             #print s.getvalue()
 
             # do a forward pass
-            ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
-                                                                                             input_score_maps: data[2],
-                                                                                             input_geo_maps: data[3],
-                                                                                             input_training_masks: data[4]})
+            ml, tl, _ = sess.run([model_loss, total_loss, train_op])
             if np.isnan(tl):
                 print('Loss diverged, stop training')
                 break
@@ -250,10 +264,7 @@ def main1(argv=None):
                 saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
 
             if step % FLAGS.save_summary_steps == 0:
-                _, tl, summary_str = sess.run([train_op, total_loss, summary_op], feed_dict={input_images: data[0],
-                                                                                             input_score_maps: data[2],
-                                                                                             input_geo_maps: data[3],
-                                                                                             input_training_masks: data[4]})
+                _, tl, summary_str = sess.run([train_op, total_loss, summary_op])
                 summary_writer.add_summary(summary_str, global_step=step)
             # end
 

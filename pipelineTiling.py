@@ -24,7 +24,6 @@ def cropGroundTruths(x, y, tile_size, gt_coords, gt_polys):
         
     keep_indices = np.squeeze(np.argwhere(intersects_tile))
     keep_gt = np.asarray(gt_coords[:,:,keep_indices])
-    print len(keep_gt), len(keep_gt[0]), keep_gt
     keep_gt[:,0,:] = keep_gt[:,0,:]-np.asarray([x])
     keep_gt[:,1,:] = keep_gt[:,1,:]-np.asarray([y])
     # TODO: Need to sort ground truths by area
@@ -87,7 +86,6 @@ def parseGroundTruths(file):
         polygons.append(poly)
         labels.append(label)
 
-    print np.asarray(points).shape
     points = np.transpose(np.asarray(points), (1, 2, 0)) # Turn Nx4x2 to 4x2xN
     return [points, polygons, labels]
 
