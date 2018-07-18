@@ -22,7 +22,14 @@ def cropGroundTruths(x, y, tile_size, gt_coords, gt_polys):
     intersects_tile = [tile.intersects(gt) for gt in gt_polys]
     intersects_tile = np.asarray(intersects_tile)
         
-    keep_indices = np.squeeze(np.argwhere(intersects_tile))
+    keep_indices = np.argwhere(intersects_tile)
+
+    # Hack because squeezing a 1x1 matrix will return a scalar, which will break the code
+    if (len(keep_indices) == 1):
+        keep_indices = keep_indices[0]
+    else:
+        keep_indices = np.squeeze(keep_indices)
+
     keep_gt = np.asarray(gt_coords[:,:,keep_indices])
     keep_gt[:,0,:] = keep_gt[:,0,:]-np.asarray([x])
     keep_gt[:,1,:] = keep_gt[:,1,:]-np.asarray([y])
@@ -51,7 +58,6 @@ def getRandomTile(img, gt_coords, gt_polys, tile_size):
     return tile, ground_truth
 
 
-# reads a ground truth file and returns a list of ground truth Polygons
 def parseGroundTruths(file):
     """
     Reads a ground truth file and returns a list, where the first element is
@@ -90,7 +96,6 @@ def parseGroundTruths(file):
     return [points, polygons, labels]
 
 
-# gets a list of the file names from the dir
 def getFilesFromDir(dir):
     """
     Gets a list of file names from a directory

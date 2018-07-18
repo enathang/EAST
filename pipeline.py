@@ -10,8 +10,6 @@ from data_util import GeneratorEnqueuer
 
 tf.app.flags.DEFINE_string('image_dir', 'data/maps/train/', '')
 tf.app.flags.DEFINE_string('gt_dir', 'data/ground_truths/train/', '')
-tf.app.flags.DEFINE_integer('batch_size', '32', '')
-tf.app.flags.DEFINE_integer('tile_size', '512', '')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -54,7 +52,7 @@ def generateTiles(tile_size):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            # continue
+            continue
 
 
 def generateMaps(tile, ground_truths):
@@ -69,8 +67,8 @@ def generateMaps(tile, ground_truths):
     tile_size = FLAGS.tile_size
     pm = importlib.import_module('pipelineMaps')
     geo_map, score_map = pm.generate_maps((tile_size, tile_size), ground_truths)
-    train_mask = np.ones(FLAGS.tile_size, FLAGS.tile_size)
-    return tile, ground_truths, geo_map, score_map, train_mask
+    train_mask = np.ones((tile_size/4, tile_size/4, 1), dtype=np.float32)
+    return tile, geo_map, score_map, train_mask
 
 
 def generatorWrapper():
@@ -100,8 +98,7 @@ def get_batch(tile_size, batch_size):
                                                                                       [tf.float32, 
                                                                                        tf.float32, 
                                                                                        tf.float32, 
-                                                                                       tf.float32, 
-                                                                                       tf.int64]), 
+                                                                                       tf.float32]), 
                                                 batch_size))
 
     return ds.prefetch(prefetch_buffer_size)
