@@ -80,7 +80,7 @@ def generatorWrapper():
     return generateTiles(FLAGS.tile_size)
 
 
-def get_batch(tile_size, batch_size):
+def get_dataset(tile_size, batch_size):
     """
     Returns a batch generator
 

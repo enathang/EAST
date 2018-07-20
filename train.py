@@ -36,6 +36,17 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
     return total_loss, model_loss
 
 
+def get_train_op(data):
+    total_loss, model_loss = tower_loss(data['tiles'], 
+                      data['geometry_maps'], 
+                      data['score_maps'], 
+                      data['training_masks'])
+    optimizer = tf.train.AdamOptimizer(0.00001)
+    train_op = optimizer.minimize(model_loss)
+
+    return train_op
+
+
 def getData(iterator):
     tile, geo, score, training_mask = iterator.get_next()
     data = {'tiles': tf.reshape(tile, [FLAGS.batch_size, FLAGS.tile_size, FLAGS.tile_size, 3]), 
@@ -47,23 +58,12 @@ def getData(iterator):
 
 
 def main(argv=None):
-    # hyperparameters
-    FLAGS.tile_size = 512
-    FLAGS.batch_size = 8
-    FLAGS.num_iter = 5
-
     # data
-    dataset = pipeline.get_batch(FLAGS.tile_size, FLAGS.batch_size)
+    dataset = pipeline.get_dataset(FLAGS.tile_size, FLAGS.batch_size)
     iterator = dataset.make_one_shot_iterator()
     data = getData(iterator)
 
-    # training ops
-    total_loss, model_loss = tower_loss(data['tiles'], 
-                      data['geometry_maps'], 
-                      data['score_maps'], 
-                      data['training_masks'])
-    optimizer = tf.train.AdamOptimizer(0.00001)
-    train_op = optimizer.minimize(model_loss)
+    train_op = get_train_op(data)
 
     # train
     init = tf.global_variables_initializer()
