@@ -35,13 +35,9 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
     return total_loss, model_loss
 
 
-def get_train_op(data):
-    total_loss, model_loss = tower_loss(data['tiles'], 
-                      data['geometry_maps'], 
-                      data['score_maps'], 
-                      data['training_masks'])
+def get_train_op(loss):
     optimizer = tf.train.AdamOptimizer(0.00001)
-    train_op = optimizer.minimize(model_loss)
+    train_op = optimizer.minimize(loss)
 
     return train_op
 
@@ -62,7 +58,12 @@ def main(argv=None):
     iterator = dataset.make_one_shot_iterator()
     data = getData(iterator)
 
-    train_op = get_train_op(data)
+    total_loss, model_loss = tower_loss(data['tiles'], 
+                      data['geometry_maps'], 
+                      data['score_maps'], 
+                      data['training_masks'])
+
+    train_op = get_train_op(model_loss)
 
     # train
     init = tf.global_variables_initializer()
