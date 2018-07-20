@@ -4,12 +4,11 @@ from tensorflow.contrib import slim
 from tensorflow.python.client import timeline
 
 import model
-import icdar
 import pipeline
 
 tf.app.flags.DEFINE_integer('tile_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size', 8, '')
-tf.app.flags.DEFINE_integer('num_iter', 5, '')
+tf.app.flags.DEFINE_integer('batch_size', 1, '')
+tf.app.flags.DEFINE_integer('num_iter', 1, '')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -71,6 +70,10 @@ def main(argv=None):
         sess.run(init)
         run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
         run_metadata = tf.RunMetadata()
+        
+        #import cProfile, pstats, StringIO
+        #pr = cProfile.Profile()
+        #pr.enable()
         for i in range(FLAGS.num_iter):
             tl, ml, _ = sess.run([total_loss, model_loss, train_op], 
                                  options=run_options, 
@@ -82,6 +85,11 @@ def main(argv=None):
             ctf = tl.generate_chrome_trace_format()
             with open('timeline.json','w') as f:
                 f.write(ctf)
+        #pr.disable()
+        #s = StringIO.StringIO()
+        #ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+        #ps.print_stats()
+        #print s.getvalue()
 
 
 if __name__ == '__main__':

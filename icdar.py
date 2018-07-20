@@ -329,8 +329,8 @@ def sort_rectangle(poly):
         p_lowest_left = (p_lowest + 1) % 4
         angle = np.arctan(-(poly[p_lowest][1] - poly[p_lowest_right][1])/(poly[p_lowest][0] - poly[p_lowest_right][0]))
         # assert angle > 0
-        if angle <= 0:
-            print(angle, poly[p_lowest], poly[p_lowest_right])
+        #if angle <= 0:
+        #    print(angle, poly[p_lowest], poly[p_lowest_right])
         if angle/np.pi * 180 > 45:
             # 这个点为p2 - this point is p2
             p2_index = p_lowest
@@ -538,6 +538,8 @@ def generate_rbox(im_size, polys, tags):
         rectange = rectangle_from_parallelogram(parallelogram)
         
         rectange, rotate_angle = sort_rectangle(rectange)
+
+       # print rectange, rotate_angle
 
         p0_rect, p1_rect, p2_rect, p3_rect = rectange
         for y, x in xy_in_poly:

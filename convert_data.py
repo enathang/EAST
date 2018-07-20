@@ -51,6 +51,7 @@ def rev(a):
 
 
 def setCorrectOrder(points, target_point):
+    # DOESN'T WORK RIGHT NOW
     # find closest point
     closest_point = 0
     shortest_dist = distance(points[0], target_point)
@@ -62,9 +63,10 @@ def setCorrectOrder(points, target_point):
 
     # shift so closest point is first
     num_shifts = len(points)-closest_point-1
+    # print 'points:', points, 'num_shifts:', num_shifts, 'closest_point:',i, 'shifted_points:', points[num_shifts:]+points[:num_shifts]
     points = points[num_shifts:]+points[:num_shifts]
     # switch from ccw to clockwise
-    #points = rev(points)
+    # points = rev(points)
     return points
 
 
@@ -72,8 +74,8 @@ def convertPolygonsToRectangles(polygons):
     rectangles = list()
     for poly in polygons:
         # don't convert if already rectangle
-        if (len(poly) == 5):
-            rectangles.append(rev(poly.tolist()))
+        if (len(poly) == 4):
+            rectangles.append(reverse(poly.tolist())) # should reverse if using icdar
         else:
             rect = cv2.minAreaRect(poly)
             points = cv2.boxPoints(rect)

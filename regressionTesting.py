@@ -1,6 +1,13 @@
 import importlib
 import cv2
 import numpy as np
+import icdar
+import eval
+
+
+def restoreRect():
+    
+    restore_rectangle_rbox(origin, geometry)
 
 def mapsRegressionTest():
     # vars
@@ -33,8 +40,10 @@ def mapsRegressionTest():
     #print 'icdar score (row 0):', np.squeeze(icdar_score[0])
     #print 'pipeline score (row 0):', pl_score[0]
 
-    print 'icdar geometry (row 0):', icdar_geo[0]
-    print 'pipeline geometry (row 0):', pl_geo[0]
+    #print 'icdar geometry (row 0):', icdar_geo[0]
+    #print 'pipeline geometry (row 0):', pl_geo[0]
+
+    boxes, timer = eval.detect(pl_score, pl_geo, timer = {'net': 0, 'restore': 0, 'nms': 0})
 
     # code taken from https://stackoverflow.com/questions/32105954/how-can-i-write-a-binary-array-as-an-image-in-python
     '''

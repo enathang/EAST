@@ -52,7 +52,7 @@ def generateTiles(tile_size):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            continue
+            # continue
 
 
 def generateMaps(tile, ground_truths):
@@ -68,6 +68,7 @@ def generateMaps(tile, ground_truths):
     pm = importlib.import_module('pipelineMaps')
     geo_map, score_map = pm.generate_maps((tile_size, tile_size), ground_truths)
     train_mask = np.ones((tile_size/4, tile_size/4, 1), dtype=np.float32)
+
     return tile, geo_map, score_map, train_mask
 
 
