@@ -27,14 +27,16 @@ def mapsRegressionTest():
     # get maps from pipeline
     pl_score, pl_geo = pm.generate_maps((512, 512), polys)
 
+    import time, eval
+    timer = {'net': 0, 'restore': 0, 'nms': 0}
+    boxes, timer = eval.detect(pl_score, pl_geo, timer)
+    import displayBoxes
+    print boxes[0][1]
+    displayBoxes.displayImageRegressionTesting(tile, boxes)
+
+
     # compare
     np.set_printoptions(threshold=np.nan)
-
-    #print 'icdar score (row 0):', np.squeeze(icdar_score[0])
-    #print 'pipeline score (row 0):', pl_score[0]
-
-    #print 'icdar geometry (row 0):', icdar_geo[0]
-    #print 'pipeline geometry (row 0):', pl_geo[0]
 
     # code taken from https://stackoverflow.com/questions/32105954/how-can-i-write-a-binary-array-as-an-image-in-python
 
@@ -43,16 +45,19 @@ def mapsRegressionTest():
     #plt.imsave('icdar_score.png', icdar_score.reshape(128, 128), cmap=cm.gray)
     #plt.imsave('pipeline_score.png', pl_score.reshape(128, 128), cmap=cm.gray)
 
-    #plt.imshow(icdar_geo[:,:,3])
-    #plt.colorbar()
-    #plt.figure()
-    #plt.imshow(pl_geo[:,:,3])
-    #plt.colorbar()
-    #plt.show()
+    '''
+    plt.imshow(icdar_geo[:,:,3])
+    plt.colorbar()
+    plt.figure()
+    plt.imshow(pl_geo[:,:,3])
+    plt.colorbar()
+    plt.show()
+    '''
 
     print 'MaxDiff', np.squeeze(np.amax(np.amax(np.abs(icdar_geo - pl_geo),axis=0),axis=0))
 
 if __name__ == '__main__':
-    random.seed(69)
-    np.random.seed(69)
+    # 71, 92
+    random.seed(92)
+    np.random.seed(92)
     mapsRegressionTest()

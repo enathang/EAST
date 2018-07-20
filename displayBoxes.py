@@ -39,6 +39,22 @@ def displayImage(im, boxes):
     plt.show()
 
 
+def displayImageRegressionTesting(im, boxes):
+    fig, ax = plt.subplots(1)
+    ax.set_aspect('equal')
+    ax.imshow(im)
+    for n in range(len(boxes)):
+        box = boxes[n]
+        circ1 = Circle((box[0],box[1]), 4, color=(1,0,0))
+        ax.add_patch(circ1)
+        circ2 = Circle((box[2],box[3]), 4, color=(0,1,0))
+        ax.add_patch(circ2)
+        circ3 = Circle((box[4],box[5]), 4, color=(0,0,1))
+        ax.add_patch(circ3)
+        
+    plt.show()
+
+
 def displayImageModified(im, boxes):
     fig, ax = plt.subplots(1)
     ax.set_aspect('equal')

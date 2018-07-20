@@ -373,7 +373,8 @@ def restore_rectangle_rbox(origin, geometry):
 
         p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
 
-        p3_in_origin = origin_0 - p_rotate[:, 4, :]
+        print 'o0',origin_0, 'p_rot',p_rotate[:, 4, :]
+        p3_in_origin = origin_0[:,1:3] - p_rotate[:, 4, :]
         new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
         new_p1 = p_rotate[:, 1, :] + p3_in_origin
         new_p2 = p_rotate[:, 2, :] + p3_in_origin
@@ -406,7 +407,7 @@ def restore_rectangle_rbox(origin, geometry):
 
         p_rotate = np.concatenate([p_rotate_x, p_rotate_y], axis=2)  # N*5*2
 
-        p3_in_origin = origin_1 - p_rotate[:, 4, :]
+        p3_in_origin = origin_1[:,1:3] - p_rotate[:, 4, :]
         new_p0 = p_rotate[:, 0, :] + p3_in_origin  # N*2
         new_p1 = p_rotate[:, 1, :] + p3_in_origin
         new_p2 = p_rotate[:, 2, :] + p3_in_origin
