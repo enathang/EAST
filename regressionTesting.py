@@ -7,10 +7,6 @@ import matplotlib.cm as cm
 import icdar
 import eval
 
-
-
-
-
 def mapsRegressionTest():
     # vars
     tile_size = 512
@@ -20,8 +16,8 @@ def mapsRegressionTest():
     pt = importlib.import_module('pipelineTiling')
     pm = importlib.import_module('pipelineMaps')
     
-    img = cv2.imread('data/maps/train/D0041-5370006.tiff')
-    gt = pt.parseGroundTruths('data/ground_truths/train/D0041-5370006.txt')
+    img = cv2.imread('data/maps/test/D0006-0285025.tiff')
+    gt = pt.parseGroundTruths('data/ground_truths/train/D0006-0285025.txt')
     points = gt[0]
     polygons = gt[1]
     labels = gt[2]
