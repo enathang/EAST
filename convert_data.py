@@ -99,7 +99,8 @@ def convertPolygonsToRectangles(polygons):
 
 
 def writeGroundTruths(name, polygons, labels):
-    name = "modified_" + name[0:-3] + "txt"
+    name = "modified_" + name[0:-4] + "txt"
+    print name
     file = open(name, "w+")
     for i in range(len(polygons)):
         poly = polygons[i]
