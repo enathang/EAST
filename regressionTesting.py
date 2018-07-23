@@ -4,8 +4,13 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import icdar
+import eval
 
 def mapsRegressionTest():
+    # vars
+    tile_size = 512
+
     # import modules
     icdar = importlib.import_module('icdar')
     pt = importlib.import_module('pipelineTiling')
@@ -16,16 +21,16 @@ def mapsRegressionTest():
     points = gt[0]
     polygons = gt[1]
     labels = gt[2]
-    tile, polys = pt.getRandomTile(img, points, polygons, 512)
+    tile, polys = pt.getRandomTile(img, points, polygons, tile_size)
     points_t = np.transpose(np.asarray(polys), (2, 0, 1))
 
     # get maps from icdar
-    icdar_score, icdar_geo, icdar_train = icdar.generate_rbox((512, 512), points_t, labels)
+    icdar_score, icdar_geo, icdar_train = icdar.generate_rbox((tile_size, tile_size), points_t, labels)
     icdar_score = icdar_score[::4, ::4, np.newaxis].astype(np.float32)
     icdar_geo = icdar_geo[::4, ::4, :].astype(np.float32)
 
     # get maps from pipeline
-    pl_score, pl_geo = pm.generate_maps((512, 512), polys)
+    pl_score, pl_geo = pm.generate_maps((tile_size, tile_size), polys)
 
     import time, eval
     timer = {'net': 0, 'restore': 0, 'nms': 0}
@@ -33,7 +38,6 @@ def mapsRegressionTest():
     import displayBoxes
     print boxes[0][1]
     displayBoxes.displayImageRegressionTesting(tile, boxes)
-
 
     # compare
     np.set_printoptions(threshold=np.nan)
@@ -55,6 +59,7 @@ def mapsRegressionTest():
     '''
 
     print 'MaxDiff', np.squeeze(np.amax(np.amax(np.abs(icdar_geo - pl_geo),axis=0),axis=0))
+
 
 if __name__ == '__main__':
     # 71, 92

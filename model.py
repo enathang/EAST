@@ -92,6 +92,7 @@ def dice_coefficient(y_true_cls, y_pred_cls,
     :return:
     '''
     eps = 1e-5
+    print 'true_cls', y_true_cls.shape, 'pred_cls',y_pred_cls.shape
     intersection = tf.reduce_sum(y_true_cls * y_pred_cls * training_mask)
     union = tf.reduce_sum(y_true_cls * training_mask) + tf.reduce_sum(y_pred_cls * training_mask) + eps
     loss = 1. - (2 * intersection / union)

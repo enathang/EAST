@@ -17,6 +17,8 @@ tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoin
 tf.app.flags.DEFINE_integer('save_checkpoint_steps', 1000, '')
 tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
 tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
+tf.app.flags.DEFINE_integer('tile_size', 512, '')
+
 
 import model
 import icdar
@@ -95,39 +97,53 @@ def get_train_op(true_cls, pred_cls, true_geo, pred_geo, training_mask):
 '''
 
 def getData(iterator):
-    tile, gt, geo, score, training_mask = iterator.get_next()
-    data = {'tiles': tile, 
-            'ground_truths': gt, 
+    tile, geo, score, training_mask = iterator.get_next()
+    data = {'tiles': tf.reshape(tile, [FLAGS.batch_size, FLAGS.tile_size, FLAGS.tile_size, 3]), 
             'geometry_maps':geo, 
             'score_maps': score, 
-            'training_masks': training_mask}
+            'training_masks': tf.reshape(training_mask, [FLAGS.batch_size, FLAGS.tile_size/4, FLAGS.tile_size/4, 1])}
 
     return data
 
-def main1(argv=None):
+def main(argv=None):
     tile_size = 512
-    batch_size = 1
-    num_iter = 5
+    FLAGS.tile_size = tile_size
+    batch_size = FLAGS.batch_size
+    num_iter = 25
 
     # data
     dataset = pipeline.get_batch(tile_size, batch_size)
+    output_shapes = (tf.TensorShape([tile_size, tile_size, 3]), # tiles
+                     tf.TensorShape([4, 2, None]), # ground_truths
+                     tf.TensorShape([tile_size/4, tile_size/4]), # geometry_maps 
+                     tf.TensorShape([tile_size/4, tile_size/4, 5]), # score_maps
+                     tf.TensorShape([tile_size/4, tile_size/4])) # training_masks
+
     iterator = dataset.make_one_shot_iterator()
+    print iterator.get_next()
     data = getData(iterator)
+    print data['tiles']
     total_loss, model_loss = tower_loss(data['tiles'], 
                       data['geometry_maps'], 
                       data['score_maps'], 
                       data['training_masks'])
+    optimizer = tf.train.AdamOptimizer(0.00001)
+    train_op = optimizer.minimize(model_loss)
 
     # train
+    init = tf.global_variables_initializer()
     with tf.Session() as sess:
+        sess.run(init)
+        print 'finished init'
         for i in range(num_iter):
-            tl, ml, _ = sess.run([loss, model_loss, train_op])
+            tl, ml, _ = sess.run([total_loss, model_loss, train_op])
+            print 'tl:',tl
 
         # test
-        print sess.run(data)
+        # print sess.run(data)
 
 
-def main(argv=None):
+def main1(argv=None):
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
     if not tf.gfile.Exists(FLAGS.checkpoint_path):

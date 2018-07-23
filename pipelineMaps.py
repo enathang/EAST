@@ -127,9 +127,7 @@ def generate_maps(image_size, rects):
         cv2.fillPoly(score_map, shrunk_rect, 1) 
 
         # Invariant: rect_mask all 0 before this
-        cv2.fillPoly(rect_mask, shrunk_rect, 1) 
-        
-        print rect, -get_angle( rect[1] - rect[0])[0] # REMOVE AFTER GT FIXED
+        cv2.fillPoly(rect_mask, shrunk_rect, 1)
 
         # If we wanted to ignore rectangles that were too small, 
         # we might do so here    
@@ -163,5 +161,5 @@ def generate_maps(image_size, rects):
     # I'm fairly certain the loss function will want the score to be a
     # float. We store it intermediately to conserve space, and only
     # convert afer downsampling.
-    return score_map[::4,::4,np.newaxis].astype(np.float32), \
+    return score_map[::4,::4, np.newaxis].astype(np.float32), \
         geo_map[::4,::4,:]
