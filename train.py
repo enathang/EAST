@@ -7,8 +7,8 @@ import model
 import pipeline
 
 tf.app.flags.DEFINE_integer('tile_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size', 1, '')
-tf.app.flags.DEFINE_integer('num_iter', 1, '')
+tf.app.flags.DEFINE_integer('batch_size', 8, '')
+tf.app.flags.DEFINE_integer('num_iter', 1000, '')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -36,7 +36,7 @@ def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=Non
 
 
 def get_train_op(loss):
-    optimizer = tf.train.AdamOptimizer(0.00001)
+    optimizer = tf.train.AdamOptimizer(0.0000001)
     train_op = optimizer.minimize(loss)
 
     return train_op
@@ -82,10 +82,10 @@ def main(argv=None):
             print 'tl:',tl, 'ml:', ml
 
             # profiling
-            tl = timeline.Timeline(run_metadata.step_stats)
-            ctf = tl.generate_chrome_trace_format()
-            with open('timeline.json','w') as f:
-                f.write(ctf)
+            #tl = timeline.Timeline(run_metadata.step_stats)
+            #ctf = tl.generate_chrome_trace_format()
+            #with open('timeline.json','w') as f:
+                #f.write(ctf)
         #pr.disable()
         #s = StringIO.StringIO()
         #ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
