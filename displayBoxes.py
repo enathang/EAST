@@ -77,4 +77,4 @@ def main(img, truth):
 
 
 if __name__ == "__main__":
-  main("maps/D0006-0285025.tiff", "modified_ground_truths/D0006-0285025.txt")
+  main("data/maps/test/D0006-0285025.tiff", "modified_ground_truths/D0006-0285025.txt")

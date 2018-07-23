@@ -21,6 +21,21 @@ def loadGroundTruths(file):
     return polygons, labels
 
 
+def loadGroundTruthsFromJson(file):
+    import json
+    with open(file) as f:
+        data = json.load(f)
+
+    polygons = list()
+    labels = list()
+    for entry in data:
+        for item in entry['items']:
+            labels.append(str(item['text']))
+            polygons.append(np.array(item['points'], dtype=np.int32))
+
+    return polygons, labels
+
+
 def loadGroundTruthFile(truth_file):
     ground_truth_list = []
     if os.path.isdir(truth_file):
@@ -72,7 +87,7 @@ def convertPolygonsToRectangles(polygons):
     rectangles = list()
     for poly in polygons:
         # don't convert if already rectangle
-        if (len(poly) == 5):
+        if (len(poly) == 4):
             rectangles.append(rev(poly.tolist()))
         else:
             rect = cv2.minAreaRect(poly)
@@ -102,7 +117,7 @@ def main(truth_file):
     ground_truth_list = loadGroundTruthFile(truth_file)
 
     for file in range(len(ground_truth_list)):
-      truths, labels = loadGroundTruths(ground_truth_list[file])
+      truths, labels = loadGroundTruthsFromJson(ground_truth_list[file])
       rect = convertPolygonsToRectangles(truths)
       writeGroundTruths(ground_truth_list[file], rect, labels)
 
