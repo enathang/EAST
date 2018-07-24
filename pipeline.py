@@ -11,7 +11,7 @@ from data_util import GeneratorEnqueuer
 tf.app.flags.DEFINE_string('image_dir', 'data/maps/train/', '')
 tf.app.flags.DEFINE_string('gt_dir', 'data/ground_truths/train/', '')
 FLAGS = tf.app.flags.FLAGS
-
+tf.logging.set_verbosity( tf.logging.INFO )
 
 def generateTiles(tile_size):
     """
@@ -93,14 +93,28 @@ def get_dataset(tile_size, batch_size):
     prefetch_buffer_size = 1 # num of batches to prefetch
     ds = tf.data.Dataset.from_generator(generatorWrapper, 
                                         (tf.float32, tf.float32), 
-                                        output_shapes=(tf.TensorShape([tile_size, tile_size, 3]), tf.TensorShape([4, 2, None])))
-    ds = ds.apply(tf.contrib.data.map_and_batch(lambda tile, ground_truth: tf.py_func(generateMaps, 
-                                                                                      [tile, ground_truth], 
-                                                                                      [tf.float32, 
-                                                                                       tf.float32, 
-                                                                                       tf.float32, 
-                                                                                       tf.float32]), 
+                                        output_shapes=(tf.TensorShape(
+                                            [tile_size, tile_size, 3]), 
+                                                       tf.TensorShape(
+                                                           [4, 2, None])))
+
+    ds = ds.apply(tf.contrib.data.map_and_batch(lambda tile, 
+                                                ground_truth: tf.py_func(
+                                                    generateMaps, 
+                                                    [tile, ground_truth], 
+                                                    [tf.float32, 
+                                                     tf.float32, 
+                                                     tf.float32, 
+                                                     tf.float32]), 
                                                 batch_size))
+
+    ds = ds.map(lambda tile, geo_map, score_map, train_mask: 
+                ({'tile': tf.reshape(tile, [FLAGS.batch_size, 
+                                            FLAGS.tile_size, 
+                                            FLAGS.tile_size, 3]),
+                  'score_map': score_map,
+                  'geo_map': geo_map,
+                  'train_mask': train_mask}, geo_map))
 
     return ds.prefetch(prefetch_buffer_size)
 
