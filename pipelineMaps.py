@@ -161,5 +161,4 @@ def generate_maps(image_size, rects):
     # I'm fairly certain the loss function will want the score to be a
     # float. We store it intermediately to conserve space, and only
     # convert afer downsampling.
-    return score_map[::4,::4, np.newaxis].astype(np.float32), \
-        geo_map[::4,::4,:]
+    return score_map[::4,::4, np.newaxis].astype(np.float32), geo_map[::4,::4,:]
