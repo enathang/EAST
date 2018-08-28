@@ -1,19 +1,16 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import slim
-from tensorflow.python.client import timeline
 
 import model
 import pipeline
 
 tf.app.flags.DEFINE_integer('tile_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size', 1, '')
+tf.app.flags.DEFINE_integer('batch_size', 16, '')
 tf.app.flags.DEFINE_integer('num_iter', 1, '')
 tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
-tf.app.flags.DEFINE_string('tune_from','',
-                           """Path to pre-trained model checkpoint""")
-tf.app.flags.DEFINE_string('checkpoint_path', 'data/model/', '')
-
+tf.app.flags.DEFINE_string('tune_from','','Path to pre-trained model checkpoint')
+tf.app.flags.DEFINE_string('checkpoint_path', 'data/models/e3decay997', '')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -44,18 +41,11 @@ def tower_loss(images, score_maps, geo_maps, training_masks,
 
 
 def get_train_op(loss):
-
-    #variable_averages = tf.train.ExponentialMovingAverage(
-      #  FLAGS.moving_average_decay, tf.train.get_global_step())
-    #variables_averages_op = variable_averages.apply(tf.trainable_variables())
-
-    #with tf.control_dependencies(variables_averages_op):
-
     learning_rate = tf.train.exponential_decay(
-        1e-4,
+        1e-3, #4
         tf.train.get_global_step(),
         2**16,
-        0.9,
+        FLAGS.moving_average_decay,
         staircase=False,
         name='learning_rate')
 
@@ -67,7 +57,6 @@ def get_train_op(loss):
         learning_rate=learning_rate, 
         optimizer=optimizer,
         variables=nn_vars)
-    
 
     return train_op
 
@@ -77,7 +66,6 @@ def input_fn():
 
 
 def distribution_strategy(num_gpus=1):
-    
     if num_gpus == 1:
         return tf.contrib.distribute.OneDeviceStrategy(device='/gpu:0')
     elif num_gpus > 1:
@@ -85,50 +73,21 @@ def distribution_strategy(num_gpus=1):
     else:
         return none
 
-def _get_init_pretrained( ):
-    """Return lambda for reading pretrained initial model"""
-    
-    if not FLAGS.tune_from:
-        return None
-    
-    # Extract the global variables
-    saver_reader = tf.train.Saver(
-        tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES ) )
-    
-    ckpt_path=FLAGS.tune_from
-
-    # Function to build the scaffold to initialize the training process
-    init_fn = lambda sess: saver_reader.restore( sess, ckpt_path )
-
-    return init_fn
-
 
 def model_fn(features, labels, mode):
-
     tile = features['tile']
     geo = features['geo_map']
     score = features['score_map']
-    
     train_mask = features['train_mask']
 
-    scaffold = tf.train.Scaffold( init_fn=
-                                  _get_init_pretrained( ) )
-
-    loss = tower_loss(tile, 
-                      geo, 
-                      score,
-                      train_mask)
-    
+    loss = tower_loss(tile, geo, score, train_mask)
     train_op = get_train_op(loss)
 
-    return tf.estimator.EstimatorSpec( mode=mode, 
-                                       loss=loss, 
-                                       train_op=train_op,
-                                       scaffold=scaffold)
+    return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
+
 
 def _get_config():
-    config=tf.ConfigProto(allow_soft_placement=True)
-
+    config = tf.ConfigProto(allow_soft_placement=True)
     custom_config = tf.estimator.RunConfig(session_config=config,
                                            save_checkpoints_secs=30,
                                            train_distribute=distribution_strategy())
@@ -137,8 +96,6 @@ def _get_config():
 
 
 def main(argv=None):
-    
-
     classifier = tf.estimator.Estimator(config=_get_config(),
                                         model_fn=model_fn,
                                         model_dir=FLAGS.checkpoint_path)

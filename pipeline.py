@@ -4,14 +4,13 @@ import importlib
 import numpy as np
 import tensorflow as tf
 import random
+import data_tools
 
 from shapely.geometry.polygon import Polygon
-from data_util import GeneratorEnqueuer
 
 tf.app.flags.DEFINE_string('image_dir', 'data/maps/train/', '')
 tf.app.flags.DEFINE_string('gt_dir', 'data/ground_truths/train/', '')
 FLAGS = tf.app.flags.FLAGS
-tf.logging.set_verbosity( tf.logging.INFO )
 
 def generateTiles(tile_size):
     """
@@ -25,13 +24,13 @@ def generateTiles(tile_size):
     pt = importlib.import_module('pipelineTiling')
 
     # get image and gt file names
-    image_files = pt.getFilesFromDir(FLAGS.image_dir)
-    gt_files = pt.getFilesFromDir(FLAGS.gt_dir)
+    image_files = data_tools.get_files_from_dir(FLAGS.image_dir)
+    gt_files = data_tools.get_files_from_dir(FLAGS.gt_dir)
     assert len(image_files) == len(gt_files)
 
     # load into memory
     images = [cv2.imread(_) for _ in image_files]
-    groundtruths = [pt.parseGroundTruths(_) for _ in gt_files]
+    groundtruths = [data_tools.parse_boxes_from_json(_) for _ in gt_files]
     groundtruth_points = [gt[0] for gt in groundtruths]
     groundtruth_polys = [gt[1] for gt in groundtruths]
     groundtruth_labels = [gt[2] for gt in groundtruths]
@@ -44,8 +43,6 @@ def generateTiles(tile_size):
             gt_points = groundtruth_points[random_index]
             gt_polys = groundtruth_polys[random_index]
             tile, mod_ground_truth = pt.getRandomTile(image, gt_points, gt_polys, tile_size)
-            #disp = importlib.import_module('displayBoxes')
-            #disp.displayImageModified(image, gt_points)
 
             yield tile, mod_ground_truth
 
@@ -55,7 +52,7 @@ def generateTiles(tile_size):
             # continue
 
 
-def generateMaps(tile, ground_truths):
+def generateMaps(tile, ground_truths, tile_shape):
     """
     Given a tile and ground truths, generate the geometry and score maps
     and the training mask
@@ -64,10 +61,9 @@ def generateMaps(tile, ground_truths):
     param ground_truths: the list of ground truths that are contained in the tile
     returns: the tile and ground truths, plus the generated maps and mask
     """
-    tile_size = FLAGS.tile_size
-    pm = importlib.import_module('pipelineMaps')
-    geo_map, score_map = pm.generate_maps((tile_size, tile_size), ground_truths)
-    train_mask = np.ones((tile_size/4, tile_size/4, 1), dtype=np.float32)
+    pm = importlib.import_module('semanticPipelineMaps')
+    geo_map, score_map = pm.generate_maps(tile_shape, ground_truths)
+    train_mask = np.ones((tile_shape[0]/4, tile_shape[1]/4, 1), dtype=np.float32)
 
     return tile, geo_map, score_map, train_mask
 
@@ -101,7 +97,7 @@ def get_dataset(tile_size, batch_size):
     ds = ds.apply(tf.contrib.data.map_and_batch(lambda tile, 
                                                 ground_truth: tf.py_func(
                                                     generateMaps, 
-                                                    [tile, ground_truth], 
+                                                    [tile, ground_truth, (FLAGS.tile_size, FLAGS.tile_size)], 
                                                     [tf.float32, 
                                                      tf.float32, 
                                                      tf.float32, 

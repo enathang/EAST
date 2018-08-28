@@ -28,7 +28,7 @@ def mapsTest():
 
     # BOXES
     timer = {'net': 0, 'restore': 0, 'nms': 0}
-    pl_boxes, timer = eval.detect(pl_score, pl_geo, timer)
+    pl_boxes = eval.new_detect(pl_score, pl_geo)
     #pl_boxes = pl_boxes[:, :8].reshape((-1, 4, 2))
 
     # DISPLAY

@@ -79,7 +79,11 @@ def shrink_rect( rect, shrink_ratio=0.3 ):
 
 def dist_to_line(p0, p1, points):
     """ Calculate the distance of points to the line segment <p0,p1> """
-    return np.abs( np.cross(p1-p0, points-p0) / norm( p1-p0 ) )
+    norm1 = norm( p1-p0 )
+    if norm1 == 0:
+        print p0, p1
+        norm1 = 1.0
+    return np.abs( np.cross(p1-p0, points-p0) / norm1 )
 
 
 def generate_maps(image_size, rects):
