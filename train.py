@@ -7,10 +7,9 @@ import pipeline
 
 tf.app.flags.DEFINE_integer('tile_size', 512, '')
 tf.app.flags.DEFINE_integer('batch_size', 16, '')
-tf.app.flags.DEFINE_integer('num_iter', 1, '')
 tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
 tf.app.flags.DEFINE_string('tune_from','','Path to pre-trained model checkpoint')
-tf.app.flags.DEFINE_string('checkpoint_path', 'data/models/e3decay997', '')
+tf.app.flags.DEFINE_string('checkpoint_path', 'data/models/e3decay997cont', '')
 FLAGS = tf.app.flags.FLAGS
 
 

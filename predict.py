@@ -11,7 +11,7 @@ import data_tools
 
 tf.app.flags.DEFINE_string('gpu_list', '0', '')
 tf.app.flags.DEFINE_string('checkpoint_path', 'data/models/e3decay997/', '')
-tf.app.flags.DEFINE_string('image_path', 'data/maps/test/', '')
+tf.app.flags.DEFINE_string('image_path', 'data/maps/test/D0042-1070006.tiff', '')
 tf.app.flags.DEFINE_string('output_dir', 'output/test/', '')
 tf.app.flags.DEFINE_bool('write_images', False, 'write images')
 FLAGS = tf.app.flags.FLAGS
@@ -100,21 +100,29 @@ def detect(score_map, geo_map, score_map_thresh=0.5, nms_thres=0.5):
     geo_map = np.squeeze(geo_map)
     
     boxes = list()
+    min_theta = 9
+    max_theta = -9
     for i in range(len(score_map)):
         for j in range(len(score_map[0])):
-            if (score_map[i, j] < score_map_thresh):
-                continue
+            #if (score_map[i, j] < score_map_thresh):
+                #continue
             point = np.asarray([i, j])
             dist = geo_map[i, j, 0:4]
             theta = -geo_map[i, j, 4] # negative turns from openCV to cartesian angle
+            if (theta < min_theta):
+                min_theta = theta
+            if (theta > max_theta):
+                max_theta = theta
             box = reconstruct_box(point, dist, theta)
             box = np.append(box, score_map[i, j])
             boxes.append(box)
 
     boxes = np.asarray(boxes)
     boxes = np.reshape(boxes, (len(boxes), 9))
-    boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), nms_thres)
-
+    print min_theta, max_theta
+    # only necessary for new_predict_test
+    # boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), 0.5)
+    
     return boxes
 
 
@@ -133,14 +141,20 @@ def create_tile_set(image, tile_shape):
     list2 = range(w-1)
     list1 = [elem*tile_height/2 for elem in list1]
     list2 = [elem*tile_width/2 for elem in list2]
-    list1.append(im_height-tile_height)
-    list2.append(im_width-tile_width)
+    if (im_height > tile_height):
+        list1.append(im_height-tile_height)
+    if (im_width > tile_width):
+        list2.append(im_width-tile_width)
 
     for y in list1:
         for x in list2:
             tiles.append(image[y:y+tile_height, x:x+tile_width])
             shifts.append((y,x))
-            
+
+    if (len(tiles) == 0):
+        tiles.append(image)
+        shifts.append((0,0))
+        
     return tiles, shifts
 
 
@@ -178,42 +192,33 @@ def predict(sess, image_file, input_images, f_score, f_geometry, tile_shape):
        f_score: a TensorFlow placeholder
        f_geometry: a TensorFlow placeholder
     """
+    print image_file
     image = cv2.imread(image_file)[:, :, ::-1]
-    im_resized, (ratio_h, ratio_w) = resize_image(image)
-    image_tiles, shifts = create_tile_set(image, (2048, 2048))
+    image_tiles, shifts = create_tile_set(image, (4096, 4096))
     boxes = np.zeros((0,9))
-
     
-    score, geometry = sess.run([f_score, f_geometry], feed_dict={input_images: [im_resized]})
-    boxes = detect(score_map=score, geo_map=geometry)
-
-    """
     for i in range(len(image_tiles)):
-        print 'predicting tile',i,'of',len(image_tiles)
+        print 'predicting tile',i+1,'of',len(image_tiles)
         tile = image_tiles[i]
         shift = shifts[i]
         score, geometry = sess.run([f_score, f_geometry], feed_dict={input_images: [tile]})
         tile_boxes = detect(score_map=score, geo_map=geometry)
         if len(tile_boxes) != 0:
-            shift = np.asarray([shift[1],shift[0],shift[1],shift[0],shift[1],shift[0],shift[1],shift[0],0])
+            shift = np.asarray([shift[0],shift[1],shift[0],shift[1],shift[0],shift[1],shift[0],shift[1],0])
             #Shift boxes back into place
-            tile_boxes = tile_boxes[:]+shift
+            tile_boxes = tile_boxes[:,:]+shift
             boxes = np.concatenate((boxes, tile_boxes), axis=0)
-    """
 
-    print len(boxes)
     boxes = lanms.merge_quadrangle_n9(boxes.astype('float32'), 0.5)
     boxes = boxes[:, :8].reshape(-1, 4, 2)
     boxes = np.flip(boxes, axis=2) #IMPORTANT
-    boxes[:,:,0] /= ratio_w
-    boxes[:,:,1] /= ratio_h
-    #boxes = np.flip(boxes, axis=2)
     
     if boxes is not None:
         save_boxes_to_file(boxes, image_file)
         
     if FLAGS.write_images:
-        save_images_to_file(image, image_file)
+        import visualize_prediction
+        visualize_prediction.save_image(image, boxes, image_file)
     
     
 def main(argv=None):

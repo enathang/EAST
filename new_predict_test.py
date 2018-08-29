@@ -21,6 +21,4 @@ boxes = predict.detect(score_map, geo_map)
 if boxes is not None:
         boxes = boxes[:, :8].reshape((-1, 4, 2))
         boxes = np.flip(boxes, axis=2) #IMPORTANT
-        print 'gt', gt_points
-        print 'pred', boxes
         predict.save_boxes_to_file(boxes, base_name)
