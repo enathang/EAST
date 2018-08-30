@@ -1,0 +1,12 @@
+Hello person from the future!
+
+Here's a brief overview of the project so development can continue after I move on to greener pastures.
+
+To train the model:
+In train.py, make sure the flags point to the correct training data and model, then call CUDA_VISIBLE_DEVICES=0 python train.py. Models are usually located under data/models/. Be careful, because while it will throw an error if the data and ground truth have different number of files, if they are the wrong files but the same number no error will be thrown. 
+
+To evaluate/run the model:
+In predict.py, make sure the flags point to the correct data and models and then call python predict.py. The flags can point to either files or directories containing files. The model will tile an image and run each tile through the model. Each output prediction is a txt file. A flag can be changed to also output images of the predictions (they're png though so they're pretty blurry).
+
+To get statistics on the model:
+Use stats.py. Point the flags to the right set of predictions and ground truths. 

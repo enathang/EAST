@@ -10,13 +10,12 @@ gt_file = 'data/ground_truths/validation/' + base_name + '.json'
 
 gt = data_tools.parse_boxes_from_json(gt_file)
 gt_points = gt[0]
-print 'num gt', len(gt[1])
 img = cv2.imread(map_file)
 print 'generating maps'
 tile, score_map, geo_map, train_mask = pipeline.generateMaps(img, gt_points, (7236, 5947))
 score_map = np.squeeze(score_map)
 print 'detecting boxes'
-boxes = predict.detect(score_map, geo_map)
+boxes = predict.convert_geometry_to_boxes(score_map, geo_map)
 
 if boxes is not None:
         boxes = boxes[:, :8].reshape((-1, 4, 2))

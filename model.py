@@ -76,7 +76,7 @@ def model(images, weight_decay=1e-5, is_training=True):
             F_score = slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)
             # 4 channel of axis aligned bbox and 1 channel rotation angle
             geo_map = slim.conv2d(g[3], 4, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None) * FLAGS.text_scale
-            angle_map = slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)*2*np.pi # angle is between [-45, 45]
+            angle_map = slim.conv2d(g[3], 1, 1, activation_fn=tf.nn.sigmoid, normalizer_fn=None)*2*np.pi # angle is between [0, 2pi]
             F_geometry = tf.concat([geo_map, angle_map], axis=-1)
 
     return F_score, F_geometry

@@ -41,7 +41,7 @@ def tower_loss(images, score_maps, geo_maps, training_masks,
 
 def get_train_op(loss):
     learning_rate = tf.train.exponential_decay(
-        1e-3, #4
+        1e-4, #4
         tf.train.get_global_step(),
         2**16,
         FLAGS.moving_average_decay,

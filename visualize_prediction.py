@@ -36,20 +36,21 @@ def save_image(im, boxes, location):
     Parameters:
        im: the image
        boxes: the boxes that corresponds to the image
+       location: the location to save the image
     """
     fig, ax = plt.subplots(1)
     ax.set_aspect('equal')
     ax.imshow(im)
     for n in range(len(boxes)):
         box = boxes[n]
-        plt.plot([box[0][0], box[1][0]], [box[0][1], box[1][1]], linewidth=0.5, color='blue', scalex=False, scaley=False)
-        plt.plot([box[1][0], box[2][0]], [box[1][1], box[2][1]], linewidth=0.5, color='red', scalex=False, scaley=False)
-        plt.plot([box[2][0], box[3][0]], [box[2][1], box[3][1]], linewidth=0.5, color='red', scalex=False, scaley=False)
-        plt.plot([box[3][0], box[0][0]], [box[3][1], box[0][1]], linewidth=0.5, color='red', scalex=False, scaley=False)
+        plt.plot([box[0][0], box[1][0]], [box[0][1], box[1][1]], linewidth=0.2, color='blue', scalex=False, scaley=False)
+        plt.plot([box[1][0], box[2][0]], [box[1][1], box[2][1]], linewidth=0.2, color='red', scalex=False, scaley=False)
+        plt.plot([box[2][0], box[3][0]], [box[2][1], box[3][1]], linewidth=0.2, color='red', scalex=False, scaley=False)
+        plt.plot([box[3][0], box[0][0]], [box[3][1], box[0][1]], linewidth=0.2, color='red', scalex=False, scaley=False)
 
     save_as = location[0:-5]+'_predicted.png'
     print 'Saving image as', save_as
-    plt.savefig(save_as)
+    plt.savefig(save_as, dpi=1000, bbox_inches='tight')
 
 
 # code taken from https://stackoverflow.com/questions/34902477/drawing-circles-on-image-with-matplotlib-and-numpy
