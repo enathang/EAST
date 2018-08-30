@@ -12,7 +12,7 @@ tf.app.flags.DEFINE_string('gpu_list', '0', 'List of available GPUs')
 tf.app.flags.DEFINE_string('checkpoint_path', 'data/models/e3decay997cont/', 'Path to model checkpoint')
 tf.app.flags.DEFINE_string('image_path', 'data/maps/test/D0042-1070002.tiff', 'Path to image or dir of images')
 tf.app.flags.DEFINE_string('output_dir', 'output/test/', 'Desired location of prediction output')
-tf.app.flags.DEFINE_bool('write_images', True, 'Whether to save images of predictions')
+tf.app.flags.DEFINE_bool('write_images', False, 'Whether to save images of predictions')
 tf.app.flags.DEFINE_float('score_map_thresh', 0.5, 'Threshold for score map')
 FLAGS = tf.app.flags.FLAGS
 
@@ -122,9 +122,18 @@ def create_tile_set(image, tile_shape):
 
     # if the image is too small to tile, just return the image
     if (tile_height > im_height or tile_width > im_width):
+        # cut off image to make sure it is able to be downsampled
         new_h = int(im_height/32)*32
         new_w = int(im_width/32)*32
-        return [image[0:new_h, 0:new_w]], [(0,0)]
+        tile_0 = image[0:new_h, 0:new_w]
+        tile_1 = image[0:new_h, im_width-new_w:im_width]
+        tile_2 = image[im_height-new_h:im_height, 0:new_w]
+        tile_3 = image[im_height-new_h:im_height, im_width-new_w:im_width]
+        shift_0 = (0,0)
+        shift_1 = (0, im_width-new_w)
+        shift_2 = (im_height-new_h, 0)
+        shift_3 = (im_height-new_h, im_width-new_w)
+        return [tile_0, tile_1, tile_2, tile_3], [shift_0, shift_1, shift_2, shift_3]
     
     # calculate points
     h = int(math.floor(im_height/float(tile_height/2)))
@@ -147,9 +156,6 @@ def create_tile_set(image, tile_shape):
         tiles.append(image)
         shifts.append((0,0))
 
-    print tiles, shifts
-    print image.shape
-    input()
     return tiles, shifts
 
 
