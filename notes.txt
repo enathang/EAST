@@ -1,12 +1,30 @@
 Hello person from the future!
-
 Here's a brief overview of the project so development can continue after I move on to greener pastures.
 
+Notes:
+You probably need to set up your own file structure in your clone. I have a general input folder data where I kept my models, maps, and GTs
+and an output folder to keep outputs. Use whatever works best for you and just change the input/output flags accordingly. I think everything is   
+covered below (tried to make it simple for both myself and others) but definitely can get tunnel vision so please email me with questions so I 
+can improve the notes/information.
+
 To train the model:
-In train.py, make sure the flags point to the correct training data and model, then call CUDA_VISIBLE_DEVICES=0 python train.py. Models are usually located under data/models/. Be careful, because while it will throw an error if the data and ground truth have different number of files, if they are the wrong files but the same number no error will be thrown. 
-
-To evaluate/run the model:
-In predict.py, make sure the flags point to the correct data and models and then call python predict.py. The flags can point to either files or directories containing files. The model will tile an image and run each tile through the model. Each output prediction is a txt file. A flag can be changed to also output images of the predictions (they're png though so they're pretty blurry).
-
-To get statistics on the model:
-Use stats.py. Point the flags to the right set of predictions and ground truths. 
+Command:
+  CUDA_VISIBLE_DEVICES=0 python train.py
+Details:
+  Simply point the flags at the correct training data and model checkpoint (or an empty directory for a new model) and run. I have an existing 
+  model under ~/Research/EAST/data/model/e3decay997/. Be careful that the flags point to folders that only contain files you want (reading in 
+  the ground truths/maps doesn't guard against extraneous files also being in the folders.) Training will error if the number of maps and 
+  ground truths are not equal (they should always be equal.) Hyperparameters can also be set in the flags. Potentially some EAST environmental
+  variables need to be set, check EAST readme if it complains, but I don't remember setting them towards the end.
+  
+To run/evaluate the model:
+Command:
+  python predict.py
+  python stats.py
+Details:
+  Again, point the flags at the correct map and model checkpoint and run. The input data can either be a singular image or a folder of images.
+  You can also switch a binary flag whether or not to save an image of the prediction. The output is a txt file with all the predicted boxes.
+  Once you have the predictions for the model, you can calculate the prediction accuracy of the model by running both the predictions and 
+  ground truths through stats.py. In stats.py, point the flags to the correct files or folders (again, be careful there are no extraneous files 
+  in the folders) and run. The ground truths should be in JSON and the predictions should be in TXT. The script should print out the precision, 
+  recall, and f-score for each map and the total at the end.
